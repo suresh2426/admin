@@ -1245,3 +1245,6 @@ Do Cross Validation and Hyperparameter Tuning
 
 
 https://docs.google.com/document/d/1jDz_eIpbCM_h2pbxMNF_PT6v9ZU8BU3ZDKyCyvoPZzk/edit?tab=t.0
+
+
+https://docs.google.com/document/d/1fCW9J8oUBnU7Q9cXZizkRpDcflSPRhxpzM2P595aSeY/edit?usp=sharing
