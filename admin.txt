@@ -1,1870 +1,1839 @@
-Supervised Learning
+ADVANCED JAVA - PRACTICALS
 
-Program to implement Regression:
-
-
+PRACTICAL NO. 1
 
 
-Linear regression
-Multivariate Linear regression
-Logistic regression
+Objective: Program on JDBC using statements.
+Program:
 
-Please Explain Each Line so that i can give interview tomorrow on these things. And explain each things in lame language. Literally i don't have any idea how to implement.
-ChatGPT said:
-Absolutely! Let's start from zero and build up your understanding step-by-step for your interview tomorrow. You're going to do great if you understand the core logic behind each line of code and why it's used.
+pom.xml:
+<dependencies>
+   <!-- https://mvnrepository.com/artifact/jakarta.servlet/jakarta.servlet-api -->
+   <dependency>
+       <groupId>jakarta.servlet</groupId>
+       <artifactId>jakarta.servlet-api</artifactId>
+       <version>4.0.2</version>
+       <scope>provided</scope>
+   </dependency>
 
-🔶 What is Supervised Learning?
-It’s like teaching a kid using examples.
 
-In supervised learning, the algorithm is trained on a labeled dataset (means we give both input and correct output). Based on that, it learns how to map input to output.
+   <dependency>
+       <groupId>com.mysql</groupId>
+       <artifactId>mysql-connector-j</artifactId>
+       <version>8.2.0</version>
+   </dependency>
+</dependencies>
 
-🔷 1. Linear Regression
-📌 Goal:
-Predict a value (like salary) based on input (like years of experience).
 
-✅ Step-by-Step Program Explanation:
-We’ll use scikit-learn, a Python machine learning library.
+index.html:
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <title>Student CRUD</title>
+</head>
+<body>
+   <h1>Student Management</h1>
+   <form action="StudentServlet" method="post">
+       <input type="hidden" name="action" value="add">
+       <input type="hidden" name="studentId">
 
-python
-Copy
-Edit
-# Step 1: Import necessary libraries
-import pandas as pd
-from sklearn.linear_model import LinearRegression
-import matplotlib.pyplot as plt
-🔹Explanation:
-pandas: To load and handle data.
 
-LinearRegression: Model to predict value using a straight line.
+       <h2>Add New Student</h2>
 
-matplotlib: To draw the graph of prediction.
 
-python
-Copy
-Edit
-# Step 2: Load the data (we use a small sample dataset for demo)
-data = {'Experience': [1, 2, 3, 4, 5], 'Salary': [30000, 35000, 40000, 45000, 50000]}
-df = pd.DataFrame(data)
-🔹Explanation:
-We’re creating a mini table with Experience and Salary.
+       Roll Number: <input type="text" name="roll" required><br><br>
+       Full Name: <input type="text" name="name" required><br><br>
+       Email: <input type="email" name="email" required><br><br>
+       Course:
+       <select name="course" required>
+           <option value="B.Tech">B.Tech</option>
+           <option value="MCA">MCA</option>
+           <option value="MBA">MBA</option>
+       </select><br><br>
+       Semester:
+       <select name="semester" required>
+           <option value="1">1</option>
+           <option value="2">2</option>
+           <option value="3">3</option>
+           <option value="4">4</option>
+       </select><br><br>
 
-df is a DataFrame that acts like a small Excel sheet.
 
-python
-Copy
-Edit
-# Step 3: Separate features (X) and label (y)
-X = df[['Experience']]
-y = df['Salary']
-🔹Explanation:
-X = input = Experience (independent variable)
+       <input type="submit" value="Submit">
+   </form>
 
-y = output = Salary (dependent variable)
 
-You must tell the model:
+   <h2>Student Records</h2>
+   <a href="StudentServlet?action=view">View All Students</a>
+</body>
+</html>
 
-“Use Experience to predict Salary.”
+StudentServlet.java:
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.sql.*;
 
-python
-Copy
-Edit
-# Step 4: Train the model
-model = LinearRegression()
-model.fit(X, y)
-🔹Explanation:
-model.fit(X, y): Train the model. It will try to draw a best-fit straight line through the data points.
 
-python
-Copy
-Edit
-# Step 5: Predict salary for 6 years experience
-predicted_salary = model.predict([[6]])
-print(f"Predicted salary for 6 years experience: {predicted_salary[0]}")
-🔹Explanation:
-predict([[6]]): Asking model, “If someone has 6 years of experience, what salary should they get?”
+@WebServlet("/StudentServlet")
+public class StudentServlet extends HttpServlet {
+   private Connection conn;
 
-It will return a number like 55000.
 
-python
-Copy
-Edit
-# Step 6: Plot the results
-plt.scatter(X, y, color='blue')  # actual data points
-plt.plot(X, model.predict(X), color='red')  # line drawn by model
-plt.xlabel('Experience')
-plt.ylabel('Salary')
-plt.title('Linear Regression')
-plt.show()
-🔹Explanation:
-Shows the points (actual data) and the red line (model's prediction).
+   @Override
+   public void init() {
+       try {
+           Class.forName("com.mysql.cj.jdbc.Driver");
+           conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/student_db", "root", "root");
+       } catch (Exception e) {
+           e.printStackTrace();
+       }
+   }
 
-Helps in visualizing how well our model is working.
 
-🔷 2. Multivariate Linear Regression
-When we predict using more than one feature, like Experience and Education.
+   @Override
+   protected void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
+       String action = req.getParameter("action");
+       String roll = req.getParameter("roll");
+       String name = req.getParameter("name");
+       String email = req.getParameter("email");
+       String course = req.getParameter("course");
+       int semester = Integer.parseInt(req.getParameter("semester"));
 
-✅ Code:
-python
-Copy
-Edit
-import pandas as pd
-from sklearn.linear_model import LinearRegression
 
-# Step 1: Create dataset with 2 features
-data = {
-    'Experience': [1, 2, 3, 4, 5],
-    'Education': [10, 12, 14, 16, 18],  # Years of education
-    'Salary': [30000, 35000, 40000, 45000, 50000]
+       try {
+           switch (action) {
+               case "add":
+                   addStudent(roll, name, email, course, semester);
+                   break;
+               case "update":
+                   int id = Integer.parseInt(req.getParameter("studentId"));
+                   updateStudent(id, roll, name, email, course, semester);
+                   break;
+           }
+       } catch (SQLException e) {
+           e.printStackTrace();
+       }
+
+
+       res.sendRedirect("StudentServlet?action=view");
+   }
+
+
+   @Override
+   protected void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
+       res.setContentType("text/html");
+       PrintWriter out = res.getWriter();
+
+
+       String action = req.getParameter("action");
+
+
+       try {
+           if("delete".equals(action)) {
+               int id = Integer.parseInt(req.getParameter("id"));
+               deleteStudent(id);
+               res.sendRedirect("StudentServlet?action=view");
+           } else if ("edit".equals(action)) {
+               int id = Integer.parseInt(req.getParameter("id"));
+               displayEditForm(out, id);
+           } else {
+               displayStudents(out);
+           }
+       } catch (SQLException | NumberFormatException e) {
+           e.printStackTrace();
+       }
+   }
+
+
+   private void addStudent(String roll, String name, String email,
+                           String course, int semester) throws SQLException {
+       String sql = "INSERT INTO students (roll_number, full_name, email, course, semester) " +
+               "VALUES (?, ?, ?, ?, ?)";
+       try(PreparedStatement stmt = conn.prepareStatement(sql)) {
+           stmt.setString(1, roll);
+           stmt.setString(2, name);
+           stmt.setString(3, email);
+           stmt.setString(4, course);
+           stmt.setInt(5, semester);
+           stmt.executeUpdate();
+       }
+   }
+
+
+   private void updateStudent(int id, String roll, String name, String email,
+                              String course, int semester) throws SQLException {
+       String sql = "UPDATE students SET roll_number=?, full_name=?, email=?, " +
+               "course=?, semester=? WHERE id=?";
+       try(PreparedStatement stmt = conn.prepareStatement(sql)) {
+           stmt.setString(1, roll);
+           stmt.setString(2, name);
+           stmt.setString(3, email);
+           stmt.setString(4, course);
+           stmt.setInt(5, semester);
+           stmt.setInt(6, id);
+           stmt.executeUpdate();
+       }
+   }
+
+
+   private void deleteStudent(int id) throws SQLException {
+       String sql = "DELETE FROM students WHERE id=?";
+       try(PreparedStatement stmt = conn.prepareStatement(sql)) {
+           stmt.setInt(1, id);
+           stmt.executeUpdate();
+       }
+   }
+
+
+   private void displayStudents(PrintWriter out) throws SQLException {
+       out.println("<html><body>");
+       out.println("<h2>Student Records</h2>");
+       out.println("<table border='1'>");
+       out.println("<tr><th>ID</th><th>Roll No</th><th>Name</th><th>Email</th><th>Course</th><th>Semester</th><th>Actions</th></tr>");
+
+
+       try(Statement stmt = conn.createStatement();
+           ResultSet rs = stmt.executeQuery("SELECT * FROM students")) {
+
+
+           while(rs.next()) {
+               out.println("<tr>");
+               out.println("<td>" + rs.getInt("id") + "</td>");
+               out.println("<td>" + rs.getString("roll_number") + "</td>");
+               out.println("<td>" + rs.getString("full_name") + "</td>");
+               out.println("<td>" + rs.getString("email") + "</td>");
+               out.println("<td>" + rs.getString("course") + "</td>");
+               out.println("<td>" + rs.getInt("semester") + "</td>");
+               out.println("<td>");
+               out.println("<a href='StudentServlet?action=edit&id=" + rs.getInt("id") + "'>Edit</a> | ");
+               out.println("<a href='StudentServlet?action=delete&id=" + rs.getInt("id") + "'>Delete</a>");
+               out.println("</td>");
+               out.println("</tr>");
+           }
+       }
+
+
+       out.println("</table>");
+       out.println("<br><a href='index.html'>Back</a>");
+       out.println("</body></html>");
+   }
+
+
+   private void displayEditForm(PrintWriter out, int id) throws SQLException {
+       String sql = "SELECT * FROM students WHERE id=?";
+       try(PreparedStatement stmt = conn.prepareStatement(sql)) {
+           stmt.setInt(1, id);
+           ResultSet rs = stmt.executeQuery();
+           if(rs.next()) {
+               out.println("<html><body>");
+               out.println("<h2>Edit Student</h2>");
+               out.println("<form action='StudentServlet' method='post'>");
+               out.println("<input type='hidden' name='action' value='update'>");
+               out.println("<input type='hidden' name='studentId' value='" + id + "'>");
+               out.println("Roll Number: <input type='text' name='roll' value='" + rs.getString("roll_number") + "' required><br><br>");
+               out.println("Full Name: <input type='text' name='name' value='" + rs.getString("full_name") + "' required><br><br>");
+               out.println("Email: <input type='email' name='email' value='" + rs.getString("email") + "' required><br><br>");
+               out.println("Course: <select name='course' required>");
+               out.println("<option value='B.Tech'" + ("B.Tech".equals(rs.getString("course")) ? " selected" : "") + ">B.Tech</option>");
+               out.println("<option value='MCA'" + ("MCA".equals(rs.getString("course")) ? " selected" : "") + ">MCA</option>");
+               out.println("<option value='MBA'" + ("MBA".equals(rs.getString("course")) ? " selected" : "") + ">MBA</option>");
+               out.println("</select><br><br>");
+               out.println("Semester: <select name='semester' required>");
+               out.println("<option value='1'" + (rs.getInt("semester") == 1 ? " selected" : "") + ">1</option>");
+               out.println("<option value='2'" + (rs.getInt("semester") == 2 ? " selected" : "") + ">2</option>");
+               out.println("<option value='3'" + (rs.getInt("semester") == 3 ? " selected" : "") + ">3</option>");
+               out.println("<option value='4'" + (rs.getInt("semester") == 4 ? " selected" : "") + ">4</option>");
+               out.println("</select><br><br>");
+               out.println("<input type='submit' value='Update'>");
+               out.println("</form>");
+               out.println("<br><a href='StudentServlet?action=view'>Cancel</a>");
+               out.println("</body></html>");
+           }
+       }
+   }
+
+
+   @Override
+   public void destroy() {
+       try {
+           conn.close();
+       } catch(SQLException e) {
+           e.printStackTrace();
+       }
+   }
 }
-df = pd.DataFrame(data)
 
-# Step 2: Separate features and label
-X = df[['Experience', 'Education']]  # Two features now
-y = df['Salary']
 
-# Step 3: Train model
-model = LinearRegression()
-model.fit(X, y)
-
-# Step 4: Predict
-prediction = model.predict([[6, 20]])
-print(f"Predicted salary for 6 years experience and 20 years education: {prediction[0]}")
-🔹Explanation:
-We added another factor: Education.
-
-model.predict([[6, 20]]): We predict salary based on 6 years experience + 20 years education.
-
-🔷 3. Logistic Regression
-Used for classification, not prediction of numbers.
-
-📌 Example: Predict if person will buy or not buy (yes or no)
-✅ Code:
-python
-Copy
-Edit
-import pandas as pd
-from sklearn.linear_model import LogisticRegression
-
-# Step 1: Create binary dataset
-data = {
-    'Age': [22, 25, 47, 52, 46],
-    'Salary': [20000, 30000, 50000, 60000, 52000],
-    'Buy': [0, 0, 1, 1, 1]  # 0 = No, 1 = Yes
-}
-df = pd.DataFrame(data)
-
-# Step 2: Features and Label
-X = df[['Age', 'Salary']]
-y = df['Buy']
-
-# Step 3: Train model
-model = LogisticRegression()
-model.fit(X, y)
-
-# Step 4: Predict
-prediction = model.predict([[30, 40000]])
-print(f"Will the person buy? {'Yes' if prediction[0]==1 else 'No'}")
-🔹Explanation:
-Buy is a binary value: 0 or 1 (classification).
-
-Logistic Regression draws an S-shaped curve to separate "Buy" and "Not Buy".
-
-predict([[30, 40000]]): Asks if a person of 30 years and ₹40k salary will buy.
-
-🔚 Summary Table:
-Model	Used For	Output Example
-Linear Regression	Predict numbers (1 input)	Salary = ₹55,000
-Multivariate Regression	Predict numbers (multi-input)	Salary = ₹60,000
-Logistic Regression	Predict categories (Yes/No, 0/1)	Will Buy = Yes
-
-✅ Final Tip for Interview:
-If asked about difference between Linear and Logistic:
-
-Linear Regression predicts a number.
-
-Logistic Regression predicts a category (Yes/No).
-
-Would you like a simple dataset to practice all 3? I can generate that and give you notebook-style code if you want.
-
-You said:
-Yes
-ChatGPT said:
-Here are the three CSV datasets you can download and use to practice:
-
-🔹 Linear Regression Dataset (Experience vs Salary):
-Download linear_regression_data.csv
-
-🔹 Multivariate Linear Regression Dataset (Experience + Education vs Salary):
-Download multivariate_regression_data.csv
-
-🔹 Logistic Regression Dataset (Age + Salary → Will Buy):
-Download logistic_regression_data.csv
-
-Let me know if you want Python code that reads these files and applies the models step by step (ready for Jupyter Notebook or PyCharm). 
-
-You said:
-Can you help in here only with the data how to do from basic prepocessing and all after that implement model and then predict
-ChatGPT said:
-Absolutely! Let's do everything step-by-step for each dataset in this chat itself, starting from:
-
-✅ Data Loading
-✅ Preprocessing
-✅ Training the model
-✅ Prediction
-✅ (Optional) Visualization
-
-We'll cover 3 models one by one:
-
-🔷 PART 1: Linear Regression (📊 Experience → Salary)
-✅ Step 1: Load the CSV Data
-python
-Copy
-Edit
-import pandas as pd
-
-# Load the data
-df = pd.read_csv("linear_regression_data.csv")
-
-print(df)
 Output:
 
-nginx
-Copy
-Edit
-   Experience  Salary
-0           1   30000
-1           2   35000
-2           3   40000
-3           4   45000
-4           5   50000
-✅ Step 2: Preprocessing (Split X and y)
-python
-Copy
-Edit
-X = df[['Experience']]  # Input features should always be 2D
-y = df['Salary']        # Target column
-✅ Step 3: Train the Model
-python
-Copy
-Edit
-from sklearn.linear_model import LinearRegression
 
-model = LinearRegression()
-model.fit(X, y)  # Training
-✅ Step 4: Predict
-python
-Copy
-Edit
-# Predict salary for 6 years of experience
-salary = model.predict([[6]])
-print(f"Predicted Salary: ₹{salary[0]}")
-✅ Step 5: Visualize (Optional)
-python
-Copy
-Edit
-import matplotlib.pyplot as plt
 
-plt.scatter(X, y, color='blue')  # Original data
-plt.plot(X, model.predict(X), color='red')  # Model prediction line
-plt.xlabel("Experience")
-plt.ylabel("Salary")
-plt.title("Linear Regression")
-plt.show()
-🔷 PART 2: Multivariate Linear Regression (📊 Experience + Education → Salary)
-✅ Step 1: Load Data
-python
-Copy
-Edit
-df = pd.read_csv("multivariate_regression_data.csv")
-print(df)
-✅ Step 2: Preprocessing
-python
-Copy
-Edit
-X = df[['Experience', 'Education']]
-y = df['Salary']
-✅ Step 3: Train Model
-python
-Copy
-Edit
-from sklearn.linear_model import LinearRegression
 
-model = LinearRegression()
-model.fit(X, y)
-✅ Step 4: Predict
-python
-Copy
-Edit
-# Predict for Experience = 6, Education = 20
-predicted_salary = model.predict([[6, 20]])
-print(f"Predicted Salary: ₹{predicted_salary[0]}")
-🔷 PART 3: Logistic Regression (🔢 Classification: Will Buy or Not)
-✅ Step 1: Load Data
-python
-Copy
-Edit
-df = pd.read_csv("logistic_regression_data.csv")
-print(df)
-✅ Step 2: Preprocessing
-python
-Copy
-Edit
-X = df[['Age', 'Salary']]  # Input features
-y = df['Buy']              # Labels (0 or 1)
-✅ Step 3: Train Model
-python
-Copy
-Edit
-from sklearn.linear_model import LogisticRegression
 
-model = LogisticRegression()
-model.fit(X, y)
-✅ Step 4: Predict
-python
-Copy
-Edit
-# Predict if a person aged 30 with ₹40,000 salary will buy
-result = model.predict([[30, 40000]])
-
-# Interpret result
-print("Will Buy?" , "Yes" if result[0] == 1 else "No")
-🧠 Summary (for your Interview):
-Model Type	Input	Output	Use Case Example
-Linear	One feature	Number	Predict salary from experience
-Multivariate	Multiple features	Number	Salary from experience + edu
-Logistic	Multiple features	0 or 1	Buy or Not based on age/salary
-
-Would you like me to combine all 3 into a single Jupyter Notebook format for practice or keep going model-by-model here?
-
-You said:
-Program to apply
-Classification: 
-Decision Tree
- Support Vector Machines with 
-linear and non-linear kernel
-functions
-Naïve Bayes Classification 
-
- K nearest Neighbor 
-Classification
-
-"Like Regression Model you have explained and in a sequence wise like that only you explain each things in classification model one by one and in very lame language and give me some imporrtant question along with answer so that i can answer in viva. And also tell me why don't we use another model for that particular problem."
-ChatGPT said:
-Perfect! Let's now go step-by-step for Classification Models, just like we did for Regression.
-
-We'll cover the following in very simple language:
-
-✅ Covered for Each Model:
-What it does (in lame terms)
-
-When to use it
-
-Python program with step-by-step explanation
-
-Why not use regression or other models instead
-
-Interview questions with sample answers
-
-🔷 1. Decision Tree Classification
-🌱 Lame Explanation:
-Think of it like 20 Questions Game or a flowchart.
-It keeps asking questions like “Is age > 30?” until it can say “Yes, Buy” or “No, Don’t Buy.”
-
-✅ Use Case:
-If you want to classify something based on rules or conditions (like age, income, etc.), it's very good.
-
-✅ Program:
-python
-Copy
-Edit
-import pandas as pd
-from sklearn.tree import DecisionTreeClassifier
-
-# Step 1: Sample data
-data = {
-    'Age': [22, 25, 47, 52, 46],
-    'Salary': [20000, 30000, 50000, 60000, 52000],
-    'Buy': [0, 0, 1, 1, 1]
-}
-df = pd.DataFrame(data)
-
-# Step 2: Features and target
-X = df[['Age', 'Salary']]
-y = df['Buy']
-
-# Step 3: Train decision tree
-model = DecisionTreeClassifier()
-model.fit(X, y)
-
-# Step 4: Predict
-print(model.predict([[30, 40000]]))  # Output: [0] or [1]
-🤔 Why not use Linear Regression?
-Because regression gives numbers, and we want categories (Yes/No).
-
-🎯 Viva Questions:
-Question	Sample Answer
-What is a decision tree?	It's like a flowchart that splits data based on conditions to make a decision.
-When do you use it?	When we need simple yes/no or categorical outputs, and decision logic is easy to break into rules.
-
-🔷 2. Support Vector Machine (SVM)
-🌱 Lame Explanation:
-Imagine two groups of points on paper. SVM draws the best possible line to separate them, as far as possible from both.
-
-✅ Use Case:
-Best when the data is cleanly separated and you need high accuracy.
-
-✅ Program (Linear Kernel):
-python
-Copy
-Edit
-from sklearn.svm import SVC
-
-# Same dataset
-X = df[['Age', 'Salary']]
-y = df['Buy']
-
-# Train SVM with linear kernel
-model = SVC(kernel='linear')
-model.fit(X, y)
-
-print(model.predict([[30, 40000]]))
-✅ Program (Non-Linear - RBF Kernel):
-python
-Copy
-Edit
-# RBF = Radial Basis Function, good for non-linear separation
-model = SVC(kernel='rbf')
-model.fit(X, y)
-
-print(model.predict([[30, 40000]]))
-🤔 Why not use Decision Tree?
-Trees can overfit (memorize too much).
-
-SVM is often more accurate and better when points aren’t split by simple rules.
-
-🎯 Viva Questions:
-Question	Sample Answer
-What is SVM?	A model that finds the best line (or curve) to separate classes.
-What’s the difference between linear and non-linear kernels?	Linear draws a straight line, non-linear uses curves to split complex data.
-
-🔷 3. Naïve Bayes Classification
-🌱 Lame Explanation:
-Think like Google’s spam filter: “If the message contains ‘free’, ‘offer’, and ‘win’, it’s probably spam.”
-Naïve Bayes uses probability to guess the category.
-
-✅ Use Case:
-Best when you have text data like spam detection, sentiment analysis.
-
-✅ Program:
-python
-Copy
-Edit
-from sklearn.naive_bayes import GaussianNB
-
-X = df[['Age', 'Salary']]
-y = df['Buy']
-
-model = GaussianNB()
-model.fit(X, y)
-
-print(model.predict([[30, 40000]]))
-🤔 Why not use SVM or Tree?
-SVM needs more training time.
-
-Naïve Bayes works faster and better for text and probability-based cases.
-
-🎯 Viva Questions:
-Question	Sample Answer
-What is Naïve Bayes?	It's a classifier based on probability. It assumes all features are independent.
-Why is it called naïve?	Because it naively assumes that all inputs are independent of each other.
-
-🔷 4. K-Nearest Neighbor (KNN)
-🌱 Lame Explanation:
-It’s like asking your 5 closest friends: “Do you buy or not?” — and deciding based on majority.
-
-✅ Use Case:
-When you don’t know the internal pattern, just want to use what the closest examples did.
-
-✅ Program:
-python
-Copy
-Edit
-from sklearn.neighbors import KNeighborsClassifier
-
-X = df[['Age', 'Salary']]
-y = df['Buy']
-
-model = KNeighborsClassifier(n_neighbors=3)
-model.fit(X, y)
-
-print(model.predict([[30, 40000]]))
-🤔 Why not use SVM or Decision Tree?
-KNN doesn’t “train” a model — it’s just memory-based.
-
-Use when data is small and simple.
-
-🎯 Viva Questions:
-Question	Sample Answer
-What is KNN?	It's a lazy algorithm that checks the 'K' nearest neighbors and decides based on majority class.
-What is the main drawback?	It becomes slow on large datasets since it stores all the data.
-
-✅ Summary Table:
-Model	Easy Example	Best For	Weakness
-Decision Tree	If Age > 30 → Buy	Rule-based decisions	Overfitting
-SVM	Line to separate classes	High accuracy separation	Slow on large datasets
-Naïve Bayes	Spam filter (probability)	Text-based or probability logic	Assumes independence
-KNN	Ask 5 closest neighbors	Small datasets with no pattern	Very slow on large datasets
-
-If you'd like, I can also help you with Jupyter Notebook-ready code, or test file setups.
-
-Would you like a single dataset to test all these models with just copy-paste code?
-
-You said:
-I want different dataset in which data is not clean and all after cleaning then process these classification model one by one.
-ChatGPT said:
-Here’s a real-world-style dirty dataset you can use for classification model practice (with missing and messy values):
-
-📁 Download classification_dirty_data.csv
-
-🟡 What’s inside the dataset?
-Age	Salary	Gender	Buy
-25	30000	Male	0
-NaN	40000	Female	1
-47	50000	Female	1
-52	None	Male	1
-thirty	60000	Male	1
-33	thirty five thousand	Other	0
-29	42000	Male	0
-41	48000	NaN	1
-36	51000	Female	NaN
-"45"	53000	Male	1
-
-Let me now walk you through:
-
-🔧 Step-by-step data cleaning
-📊 Apply classification models:
-
-Decision Tree
-
-SVM
-
-Naïve Bayes
-
-KNN
-
-Shall we begin with Step 1: Data Cleaning and Preprocessing? 
-
-You said:
-Yes 
-ChatGPT said:
-Awesome! Let's begin with:
-
-✅ STEP 1: Data Cleaning and Preprocessing
-We’ll do the following:
-
-Load the dataset
-
-Handle missing values (NaN)
-
-Convert messy text (like "thirty", "thirty five thousand") into numbers
-
-Convert categorical column (Gender) into numeric
-
-Handle target column (Buy) if any missing
-
-Final cleaned data ready for classification
-
-🔽 Load and See Raw Data
-python
-Copy
-Edit
-import pandas as pd
-
-# Load the dirty dataset
-df = pd.read_csv("classification_dirty_data.csv")
-
-# View raw data
-print(df)
-🔄 Step 2: Fix "Age" column
-python
-Copy
-Edit
-# Replace string 'thirty' and '45' with proper numbers
-df['Age'] = df['Age'].replace({'thirty': 30, '45': 45})
-
-# Convert to numeric (coerce converts any error to NaN)
-df['Age'] = pd.to_numeric(df['Age'], errors='coerce')
-🔄 Step 3: Fix "Salary" column
-python
-Copy
-Edit
-# Replace string with number
-df['Salary'] = df['Salary'].replace({'thirty five thousand': 35000})
-
-# Convert to numeric
-df['Salary'] = pd.to_numeric(df['Salary'], errors='coerce')
-🔄 Step 4: Handle missing values
-python
-Copy
-Edit
-# Fill missing Age/Salary with mean
-df['Age'].fillna(df['Age'].mean(), inplace=True)
-df['Salary'].fillna(df['Salary'].mean(), inplace=True)
-
-# Fill missing Gender with mode (most common)
-df['Gender'].fillna(df['Gender'].mode()[0], inplace=True)
-
-# Fill missing Buy with mode
-df['Buy'].fillna(df['Buy'].mode()[0], inplace=True)
-🔄 Step 5: Convert Categorical "Gender" → Numeric
-python
-Copy
-Edit
-# One-hot encoding or simple mapping
-df['Gender'] = df['Gender'].map({'Male': 0, 'Female': 1, 'Other': 2})
-✅ Final Cleaned Data
-python
-Copy
-Edit
-print(df)
-🧠 Summary of Cleaned Dataset
-Age	Salary	Gender	Buy
-25	30000	0	0
-37	40000	1	1
-47	50000	1	1
-52	45111	0	1
-30	60000	0	1
-33	35000	2	0
-29	42000	0	0
-41	48000	1	1
-36	51000	1	1
-45	53000	0	1
-
-✅ Now your dataset is clean and numeric — ready for classification models!
-
-Would you like to move on to applying the Decision Tree model next using this cleaned data?
-
-You said:
-yes now next
-ChatGPT said:
-Perfect! Now that our data is clean, let’s move to:
-
-🔷 STEP 2: Decision Tree Classification
-✅ What are we doing?
-We’ll use this data to train a model to predict if a customer will buy a product (Buy = 1 or 0) based on:
-
-Age
-
-Salary
-
-Gender
-
-🧠 Step-by-step in Very Simple Language:
-1️⃣ Choose Features (inputs) and Target (output)
-python
-Copy
-Edit
-X = df[['Age', 'Salary', 'Gender']]  # Inputs
-y = df['Buy']                        # Output (Label)
-2️⃣ Train the Decision Tree Model
-python
-Copy
-Edit
-from sklearn.tree import DecisionTreeClassifier
-
-model = DecisionTreeClassifier()
-model.fit(X, y)  # Train the model
-3️⃣ Make a Prediction
-Example: Predict if a 35-year-old Female with ₹45,000 salary will buy.
-
-python
-Copy
-Edit
-prediction = model.predict([[35, 45000, 1]])  # Gender 1 = Female
-print("Will Buy?" , "Yes" if prediction[0] == 1 else "No")
-🧪 4️⃣ (Optional) Test with multiple entries
-python
-Copy
-Edit
-# Test with multiple new people
-test_data = [
-    [30, 40000, 0],  # Male
-    [40, 50000, 1],  # Female
-    [28, 35000, 2],  # Other
-]
-
-results = model.predict(test_data)
-print("Predictions:", results)
-📊 5️⃣ Visualize the Tree (Optional)
-python
-Copy
-Edit
-from sklearn.tree import plot_tree
-import matplotlib.pyplot as plt
-
-plt.figure(figsize=(10,6))
-plot_tree(model, feature_names=['Age', 'Salary', 'Gender'], class_names=['No', 'Yes'], filled=True)
-plt.show()
-🎯 Viva Q&A (Decision Tree)
-Question	Simple Answer
-What is a Decision Tree?	It’s a model that splits data by asking questions (like a flowchart) until it decides a class.
-What are the advantages?	Easy to understand, no need to scale data, works for both classification and regression.
-What’s the drawback?	It can overfit (memorize) if not pruned or limited.
-
-✅ Now you're done with Decision Tree!
-
-Shall we continue with SVM (Support Vector Machine) – Linear and Non-Linear?
-
-You said:
-yes
-ChatGPT said:
-Great! Let’s now go to:
-
-🔷 STEP 3: Support Vector Machine (SVM) – Linear & Non-Linear
-🧠 What is SVM (In Lame Terms)?
-Think of it like drawing the best line to split two groups (Buy = 1 and Buy = 0).
-It tries to maximize the space between the line and the nearest data points on both sides.
-
-Linear SVM → draws a straight line (good when data is cleanly separable).
-
-Non-linear SVM (RBF kernel) → draws a curve when the data can’t be split with a line.
-
-✅ Step-by-Step Code for Linear SVM
-python
-Copy
-Edit
-from sklearn.svm import SVC
-
-# Inputs and output
-X = df[['Age', 'Salary', 'Gender']]
-y = df['Buy']
-
-# Linear SVM Model
-linear_model = SVC(kernel='linear')
-linear_model.fit(X, y)
-
-# Predict for a 35-year-old Female with ₹45,000 salary
-prediction = linear_model.predict([[35, 45000, 1]])
-print("Linear SVM Prediction:", "Will Buy" if prediction[0] == 1 else "Won't Buy")
-✅ Step-by-Step Code for Non-Linear SVM (RBF Kernel)
-python
-Copy
-Edit
-# Non-linear SVM Model using RBF kernel
-rbf_model = SVC(kernel='rbf')
-rbf_model.fit(X, y)
-
-# Predict for same person
-prediction = rbf_model.predict([[35, 45000, 1]])
-print("Non-Linear SVM Prediction:", "Will Buy" if prediction[0] == 1 else "Won't Buy")
-🔍 What’s the Difference Between Linear and Non-Linear?
-Linear SVM	Non-Linear SVM (RBF)
-Draws a straight line	Draws a curve (for complex data)
-Faster	Slightly slower but more flexible
-Works when classes are well separated	Works when data is mixed and overlapping
-
-🎯 Viva Q&A (SVM)
-Question	Simple Answer
-What is SVM?	A model that finds the best line (or curve) that separates two categories.
-What is a kernel?	A method used by SVM to draw complex boundaries (like curves).
-What is the difference between linear and RBF kernel?	Linear draws a straight line, RBF draws curves for complex data.
-When not to use SVM?	On very large datasets or when interpretability is more important.
-
-✅ Now we’ve covered Decision Tree and SVM (both types).
-
-Would you like to move to Naïve Bayes next?
-
-You said:
-yes
-ChatGPT said:
-Awesome! Let’s move on to:
-
-🔷 STEP 4: Naïve Bayes Classification
-🧠 What is Naïve Bayes? (In Lame Terms)
-Think of it like guessing a class based on probability.
-It asks: “Based on age, salary, gender… what’s the chance that this person will buy?”
-
-It uses math (Bayes’ Theorem) + assumes all features are independent (that’s the “naïve” part).
-
-✅ When to Use Naïve Bayes?
-When features are categorical or independent
-
-For text spam detection, medical diagnosis, etc.
-
-Very fast and works great even with small datasets
-
-✅ Step-by-Step Code
-python
-Copy
-Edit
-from sklearn.naive_bayes import GaussianNB
-
-# Input & Output
-X = df[['Age', 'Salary', 'Gender']]
-y = df['Buy']
-
-# Train the model
-nb_model = GaussianNB()
-nb_model.fit(X, y)
-
-# Predict for a new person
-prediction = nb_model.predict([[35, 45000, 1]])  # Female
-print("Naïve Bayes Prediction:", "Will Buy" if prediction[0] == 1 else "Won't Buy")
-🧪 Test on multiple people
-python
-Copy
-Edit
-test_data = [
-    [30, 40000, 0],  # Male
-    [40, 50000, 1],  # Female
-    [28, 35000, 2],  # Other
-]
-
-results = nb_model.predict(test_data)
-print("Predictions (Naïve Bayes):", results)
-🎯 Viva Q&A (Naïve Bayes)
-Question	Simple Answer
-What is Naïve Bayes?	A model that uses probabilities to classify based on past data.
-Why is it called “Naïve”?	It assumes all input features are independent (which is usually not true).
-Where is it used?	Spam detection, sentiment analysis, medical diagnosis.
-What are the advantages?	Fast, simple, works well with small data.
-Disadvantages?	Assumes independence, may be less accurate on correlated data.
-
-✅ Now you’ve done Naïve Bayes as well.
-
-Shall we move on to the last model: K-Nearest Neighbors (KNN)?
-
-You said:
-yes
-ChatGPT said:
-Perfect! Let's wrap up classification with:
-
-🔷 STEP 5: K-Nearest Neighbors (KNN) Classification
-🧠 What is KNN? (In Lame Terms)
-Imagine you're in a room full of people.
-You want to predict if a new person will buy — so you look at their K nearest neighbors (the most similar people).
-If most of them bought, you say the new person will also buy.
-
-It uses distance to measure similarity (e.g., age, salary).
-
-It’s like "asking your neighbors what they did".
-
-✅ When to Use KNN?
-When you want simple and interpretable results
-
-Works well for small to medium datasets
-
-You must scale your data because it depends on distance
-
-✅ Step-by-Step Code
-🔹 1. Import & Preprocess (Scaling)
-python
-Copy
-Edit
-from sklearn.preprocessing import StandardScaler
-from sklearn.neighbors import KNeighborsClassifier
-
-# Inputs and outputs
-X = df[['Age', 'Salary', 'Gender']]
-y = df['Buy']
-
-# Normalize features
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
-🔹 2. Train the KNN Model
-python
-Copy
-Edit
-knn_model = KNeighborsClassifier(n_neighbors=3)  # Try with k=3
-knn_model.fit(X_scaled, y)
-🔹 3. Predict for New Person
-python
-Copy
-Edit
-new_person = scaler.transform([[35, 45000, 1]])  # Female
-prediction = knn_model.predict(new_person)
-print("KNN Prediction:", "Will Buy" if prediction[0] == 1 else "Won't Buy")
-🔹 4. Predict for Multiple People
-python
-Copy
-Edit
-test_data = scaler.transform([
-    [30, 40000, 0],
-    [40, 50000, 1],
-    [28, 35000, 2],
-])
-
-results = knn_model.predict(test_data)
-print("KNN Predictions:", results)
-🔍 What is K in KNN?
-K = number of neighbors to check
-
-If K=3, look at 3 closest people
-
-Too small → may be noisy
-
-Too large → may miss local patterns
-
-🎯 Viva Q&A (KNN)
-Question	Simple Answer
-What is KNN?	A model that predicts based on the K nearest neighbors' behavior
-What does “K” mean?	The number of neighbors to check before deciding
-Do we need to scale data?	Yes, because it uses distance for similarity
-Advantages?	Simple, no training time
-Disadvantages?	Slow for large data, sensitive to irrelevant features or unscaled data
-
-⚠️ Why not use other models?
-Model	When Not To Use
-Decision Tree	When overfitting is a concern
-SVM	With large or noisy data
-Naïve Bayes	When features are highly correlated
-KNN	When dataset is very big or unscaled
-
-✅ You’ve now implemented and understood:
-
-Decision Tree
-
-SVM (Linear & Non-linear)
-
-Naïve Bayes
-
-KNN
-
-
-
-Ensemble Techniques
-Improving the Performance 
-Program to demonstrate Evaluation
-of the model
-
- 
-
-Feature Selection
-
- 
-
-Cross Validation Techniques
-
- 
-
-Hyper parameter tuning
-
-"Explain each topic in simple and lame languages and provide practise question with dataset and provide some viva question along with that so that i can answer to them each words in the code"
-ChatGPT said:
-Great! Let’s walk through these advanced but important topics in Machine Learning step by step in very simple, beginner-friendly language. We'll go through:
-
-Ensemble Techniques
-
-Improving Model Performance
-
-Evaluation of the Model
-
-Feature Selection
-
-Cross Validation Techniques
-
-Hyperparameter Tuning
-
-After each section, I’ll include:
-
-✅ Simple Python practice with a dataset
-
-🎯 Viva questions
-
-🧠 Answers with code-level explanation
-
-✅ 1. Ensemble Techniques (Teamwork of Models)
-📘 What it means (Simple):
-Imagine you want to make a decision (like choosing a movie). You ask multiple friends and go with the majority choice. That’s an ensemble!
-
-🧠 Types of Ensemble Methods:
-
-Method	Idea	Analogy
-Bagging	Train many models on different parts of data	Ask 5 friends about 5 different movies
-Boosting	Train models one after another, each learning from previous mistake	Like a student learning from previous errors
-Voting	Combine predictions from multiple models	Majority wins
-Stacking	Combine predictions using another model	A teacher (meta-model) checks all students' answers
-
-✅ Python Code: Voting Classifier (Ensemble of KNN, DT, SVM)
-
-python
-Copy
-Edit
-from sklearn.datasets import load_iris
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import VotingClassifier
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.svm import SVC
-
-X, y = load_iris(return_X_y=True)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
-
-# 3 models
-knn = KNeighborsClassifier()
-dt = DecisionTreeClassifier()
-svm = SVC(probability=True)
-
-# Ensemble model
-voting_clf = VotingClassifier(estimators=[('knn', knn), ('dt', dt), ('svm', svm)], voting='soft')
-voting_clf.fit(X_train, y_train)
-
-print("Accuracy:", voting_clf.score(X_test, y_test))
-🎯 Viva Questions:
-
-What is ensemble learning?
-
-What is the difference between Bagging and Boosting?
-
-What is Voting Classifier?
-
-✅ 2. Improving Model Performance
-📘 Simple Meaning:
-Making your model smarter, faster, and more accurate using:
-
-Clean data
-
-Feature engineering
-
-Regularization
-
-Cross-validation
-
-Hyperparameter tuning
-
-🎯 Viva Questions:
-
-What are the different ways to improve model performance?
-
-What is overfitting and underfitting?
-
-✅ 3. Model Evaluation (How well model is doing)
-📘 Simple Meaning:
-After training a model, you must check how good it is.
-Key terms:
-
-Accuracy = (Correct / Total)
-
-Precision = Focus on positive predictions (e.g., how many emails marked spam are actually spam)
-
-Recall = Focus on detecting all actual positives
-
-F1-Score = Balance between precision and recall
-
-Confusion Matrix = A table showing TP, TN, FP, FN
-
-✅ Python Code:
-
-python
-Copy
-Edit
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
-
-y_pred = voting_clf.predict(X_test)
-
-print("Accuracy:", accuracy_score(y_test, y_pred))
-print("Precision:", precision_score(y_test, y_pred, average='macro'))
-print("Recall:", recall_score(y_test, y_pred, average='macro'))
-print("F1 Score:", f1_score(y_test, y_pred, average='macro'))
-print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
-🎯 Viva Questions:
-
-What is the difference between Precision and Recall?
-
-When to use F1-Score?
-
-What does a confusion matrix show?
-
-✅ 4. Feature Selection (Pick only useful columns)
-📘 Simple Meaning:
-Removing useless features (columns) from your data, like:
-
-Irrelevant: hair color for predicting salary
-
-Repetitive: two columns showing same thing
-
-Techniques:
-
-Manual (domain knowledge)
-
-Statistical (correlation, chi2, ANOVA)
-
-Automated (RFE, SelectKBest)
-
-✅ Python Code (SelectKBest):
-
-python
-Copy
-Edit
-from sklearn.feature_selection import SelectKBest, chi2
-from sklearn.datasets import load_iris
-
-X, y = load_iris(return_X_y=True)
-X_new = SelectKBest(score_func=chi2, k=2).fit_transform(X, y)
-
-print("Original shape:", X.shape)
-print("New shape after feature selection:", X_new.shape)
-🎯 Viva Questions:
-
-Why do we use feature selection?
-
-What is SelectKBest?
-
-What happens if we don’t remove irrelevant features?
-
-✅ 5. Cross Validation (Fair Testing)
-📘 Simple Meaning:
-Instead of testing once, test multiple times on different parts of data to get an average performance.
-It's like taking 5 mock tests before your real exam.
-
-Types:
-
-K-Fold
-
-Stratified K-Fold
-
-✅ Python Code:
-
-python
-Copy
-Edit
-from sklearn.model_selection import cross_val_score
-
-scores = cross_val_score(voting_clf, X, y, cv=5)
-print("Cross-validation scores:", scores)
-print("Average CV score:", scores.mean())
-🎯 Viva Questions:
-
-What is k-fold cross-validation?
-
-Why do we use cross-validation?
-
-What is the benefit of CV over single train-test split?
-
-✅ 6. Hyperparameter Tuning (Finding best settings)
-📘 Simple Meaning:
-Trying different settings to make model better. Like adjusting ingredients to improve your cooking.
-
-Techniques:
-
-Grid Search (try all combinations)
-
-Random Search (try random combinations)
-
-✅ Python Code (Grid Search with SVM):
-
-python
-Copy
-Edit
-from sklearn.model_selection import GridSearchCV
-
-param_grid = {
-    'C': [0.1, 1, 10],
-    'kernel': ['linear', 'rbf']
+PRACTICAL NO. 2
+
+
+Objective: Program to demonstrate Generic and HTTP Servlet response and request objects.
+Program:
+
+pom.xml:
+<dependency>
+   <groupId>jakarta.servlet</groupId>
+   <artifactId>jakarta.servlet-api</artifactId>
+   <version>4.0.2</version>
+   <scope>provided</scope>
+</dependency>
+
+index.html:
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <title>Student Form</title>
+</head>
+<body>
+   <h2>Student Details Form</h2>
+   <form action="student" method="post">
+       Roll Number: <input type="text" name="roll"><br><br>
+       Name: <input type="text" name="name"><br><br>
+       <input type="submit" value="submit">
+   </form>
+</body>
+</html>
+
+MyGenericServlet.java:
+import javax.servlet.GenericServlet;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.annotation.WebServlet;
+import java.io.IOException;
+import java.io.PrintWriter;
+
+
+@WebServlet("/student")
+public class MyGenericServlet extends GenericServlet {
+
+
+   @Override
+   public void service(ServletRequest req, ServletResponse res) throws ServletException, IOException {
+       res.setContentType("text/html");
+       PrintWriter out = res.getWriter();
+
+
+       String roll = req.getParameter("roll");
+       String name = req.getParameter("name");
+       out.println("<html><body>");
+       out.println("<h3>Student Details Submitted:</h3>");
+       out.println("<p>Roll Number: " + roll + "<br>");
+       out.println("Name: " + name + "</p><br>");
+       out.println("<p>Protocol: " + req.getProtocol() + "<br>");
+       out.println("Scheme: " + req.getScheme() + "<br>");
+       out.println("Encoding: " + req.getCharacterEncoding() + "<br>");
+       out.println("Content Type: " + req.getContentType() + "<br>");
+       out.println("Server Name: " + req.getServerName() + "<br>");
+       out.println("Servlet Context: " + req.getServletContext() + "<br>");
+       out.println("Port: " + req.getLocalPort() + "</p><br>");
+       out.println("<a href='headers'>Go to HTTP Servlet (View Headers)</a>");
+       out.println("</body></html>");
+   }
 }
 
-grid = GridSearchCV(SVC(), param_grid, cv=3)
-grid.fit(X_train, y_train)
+MyHttpServlet.java:
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.Enumeration;
 
-print("Best parameters:", grid.best_params_)
-print("Best score:", grid.best_score_)
-🎯 Viva Questions:
 
-What is hyperparameter tuning?
+@WebServlet("/headers")
+public class MyHttpServlet extends HttpServlet {
 
-What is the difference between GridSearchCV and RandomSearchCV?
 
-Why tuning is important?
+   @Override
+   protected void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
+       res.setContentType("text/html");
+       PrintWriter out = res.getWriter();
 
-🧪 Sample Dataset for Practice
-You can practice using:
 
-Iris Dataset (comes with sklearn)
+       out.println("<html><body>");
+       out.println("<h3>HTTP Request Headers:</h3>");
 
-Or download a messy dataset from: https://www.kaggle.com/datasets
-(Search: Titanic, Heart Disease, Diabetes)
 
-If you'd like, I can provide you a downloadable dataset with missing values and unnecessary columns for practice.
+       out.println("<p>User-Agent: " + req.getHeader("User-Agent") + "<br>");
+       out.println("Host:" + req.getHeader("Host") + "<br>");
+       out.println("Accept-Language: " + req.getHeader("Accept-Language") + "</p>");
 
-Would you like:
 
-A custom practice dataset with messy data (NaNs, irrelevant columns)?
+       out.println("<h4>All Headers:</h4>");
+       out.println("<p>");
+       Enumeration<String> headerNames = req.getHeaderNames();
+       while (headerNames.hasMoreElements()) {
+           String headerName = headerNames.nextElement();
+           out.println(headerName + ": " + req.getHeader(headerName) + "<br>");
+       }
+       out.println("</p>");
 
-Practice assignment-style questions for each concept above?
 
-Let me know and I’ll prepare those for you!
-
-You said:
-ye
-ChatGPT said:
-Here is your messy dataset for practice:
-👉 Download messy_dataset.csv
-
-📊 Features in the dataset:
-Name: Irrelevant for prediction (to be dropped)
-
-Age: Has missing values
-
-Salary: Has missing values
-
-Gender: Has a missing value
-
-Has_Degree: Categorical (needs encoding)
-
-Random_Col: Useless column
-
-Target: 0 or 1 (your classification target)
-
-✅ Practice Tasks:
-Clean the data:
-
-Drop Name and Random_Col
-
-Fill missing Age and Salary with mean
-
-Handle missing Gender by filling most frequent
-
-Encode Gender and Has_Degree to numbers
-
-Apply Feature Selection:
-
-Use SelectKBest to choose top features for predicting Target
-
-Train a classifier:
-
-Try DecisionTreeClassifier or KNN
-
-Use train_test_split
-
-Evaluate the model:
-
-Accuracy, Precision, Recall, F1-Score, Confusion Matrix
-
-Do Cross Validation and Hyperparameter Tuning
-
-*****************************************************************************************************************************************************************
-***Data PreProssing***
-
-//Box plot will help us to find out the mean values
-import seaborn as sns
-sns.boxplot(data=titanic, x=titanic.Pclass, y=titanic.Age, palette='rocket')
-
-
-//Accuracy (True Positive )
-tn, fp, fn, tp = cfm.ravel()
-accuracy = (tp + tn) / (tn + fp + fn + tp)
-accuracy
-
-//One Hot Encoding 
-titanic_dummies = pd.get_dummies(titanic_cat2).astype(int)
-
-
-//LabelEncoding
-from sklearn.preprocessing import LabelEncoder
-le = LabelEncoder()
-le.fit_transform(titanic_cat2['Embarked'])
-
-
-//Matplotlib & SNS
---Heatmap
-  sns.heatmap(df.isnull(), yticklabels=False)
-
-
---Count plot
-A count plot can be thought of as a histogram across a categorical, instead of quantitative, variable.
-  sns.countplot(data=df, x='Survived', hue='Sex')
-
---displot
-### To see the distribution of age throughout the data.
-sns.distplot(df['Age'])
-
-
-***Unsupervised Learning***
-
-
-***--Apriori Algo***
-
-df = pd.read_csv('/content/puchased_data.csv.csv', header=None)
-print(df.to_string())
-
-import numpy as np
-
-records = []
-for i in range(len(df)):
-    row = []
-    for j in range(len(df.columns)):
-        value = df.values[i, j]
-        if pd.notna(value):
-            row.append(str(value))
-    records.append(row)
-
-records
-
-!pip install apyori
-from apyori import apriori
-
-association_rule = apriori(records, min_support=0.5, min_confidence=0.75)
-
-association_result = list(association_rule)
-
-association_result
-
-
-
-****--Kmeans****
-from google.colab import files
-import pandas as pd
-import warnings
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import MinMaxScaler
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, roc_auc_score, accuracy_score, classification_report
-warnings.filterwarnings('ignore')
-
-
-plt.scatter(income_df.Age, income_df.Income)
-
-plt.scatter(income_df.Age, income_df.Income)
-
-kmean = KMeans(n_clusters=3)
-kmean
-
-y_pred = kmean.fit_predict(income_df[['Age', 'Income']])
-y_pred
-
-income_df['Cluster'] = y_pred
-income_df
-
-//for visulization 
-df1 = income_df[income_df.Cluster == 0]
-df2 = income_df[income_df.Cluster == 1]
-df3 = income_df[income_df.Cluster == 2]
-
-df1
-
-df2
-
-df3
-
-income_df.describe()
-
-plt.scatter(df1.Age, df1.Income, color='red')
-plt.scatter(df2.Age, df2.Income, color='green')
-plt.scatter(df3.Age, df3.Income, color='blue')
-plt.xlabel('Age')
-plt.ylabel('Income')
-plt.title("Age Income Scatter Plot")
-
-//for properly scaled diagram
-scaler = MinMaxScaler()
-
-scaler.fit(income_df[['Income']])
-
-income_df['Income'] = scaler.transform(income_df[['Income']])
-
-scaler.fit(income_df[['Age']])
-
-income_df['Age'] = scaler.transform(income_df[['Age']])
-
-income_df
-
-km=KMeans(n_clusters=3)
-y_predict=km.fit_predict(income_df[['Age','Income']])
-y_predict
-income_df['Cluster']=y_predict
-income_df
-
-df1 = income_df[income_df.Cluster == 0]
-df2 = income_df[income_df.Cluster == 1]
-df3 = income_df[income_df.Cluster == 2]
-
-plt.scatter(df1.Age, df1.Income, color='red')
-plt.scatter(df2.Age, df2.Income, color='green')
-plt.scatter(df3.Age, df3.Income, color='blue')
-plt.scatter(km.cluster_centers_[:,0], km.cluster_centers_[:,1] , color = 'purple',marker="*")
-plt.xlabel('Age')
-plt.ylabel('Income')
-plt.title("Age Income Scatter Plot")
-
-kmean.cluster_centers_
-
-
-****--Elbow Method****
-## Elbow Method is used on the clustering to identify the number of clusters
-
-from google.colab import files
-import pandas as pd
-import warnings
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import MinMaxScaler
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, roc_auc_score, accuracy_score, classification_report
-warnings.filterwarnings('ignore')
-
-mall_cust_df.info()
-
-mall_cust_df
-
-mall_cust_df.shape
-
-mall_cust_df.describe()
-
-X = mall_cust_df[["Annual Income (k$)", "Spending Score (1-100)"]].values
-X
-
-kmean = KMeans(n_clusters=3)
-kmean
-
-y_pred = kmean.fit_predict(X)
-
-y_pred
-
-mall_cust_df['Cluster'] = y_pred
-
-mall_cust_df
-
-kmean.cluster_centers_
-
-sum_of_squared_distance = []
-
-for k in range(1, 10):
-  km = KMeans(n_clusters=k)
-  km = km.fit(X)
-  sum_of_squared_distance.append(km.inertia_)
-
-sum_of_squared_distance
-
-##Plot sum_of_squared_distance & determine optimal k using Elbow method
-plt.plot(range(1, 10), sum_of_squared_distance)
-plt.title("Elbow Method")
-plt.xlabel("No of Clusters")
-plt.xlabel("Sum of Squared Distances")
-
-
-
-***Supervises Learning***
-**Linear Regression **
-
-from google.colab import files
-import pandas as pd
-import matplotlib.pyplot as plt
-from sklearn import linear_model
-import warnings
-warnings.filterwarnings('ignore')
-
-houseData.info()
-
-houseData.head()
-
-X = houseData.Area
-Y = houseData.Price
-
-plt.figure(dpi=150)
-plt.xlabel('Flat Area')
-plt.ylabel('Sales Price')
-plt.scatter(X, Y, marker='.', color='red')
-
-reg = linear_model.LinearRegression()
-
-reg.fit(houseData[['Area']], houseData.Price)
-
-reg.predict([[1900]])
-
-//slope
-reg.coef_
-
-//intercept
-reg.intercept_
-
-//Manually checking
-y = reg.coef_ * 1900 + reg.intercept_
-y
-
-*** to get MSE Error ***
-
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-print("Testing Errors")
-print("MAE: ", mean_absolute_error(y_test, y_pred))
-print("MSE: ", mean_squared_error(y_test, y_pred))
-print("R2 Square: ", r2_score(y_test, y_pred))
-
-
-**Multivariate Regression**
-
-houseData = pd.read_csv(filename)
-houseData.info()
-
-houseData.head()
-
-//preprocessing
-//if the value is NaN
-bedroomMean = houseData.Bedroom.mean()
-bedroomMean
-houseData.Bedroom = houseData.Bedroom.fillna(value=bedroomMean)
-houseData
-
-//regression
-reg = linear_model.LinearRegression()
-
-reg.fit(houseData[['Area', 'Bedroom', 'Age']], houseData.Price)
-
-//slope
-reg.coef_
-
-reg.predict([[1900]])
-
-//intecept
-reg.intercept_
-
-//predict for diff values
-reg.predict([[3000, 3, 50]])
-
-//manually checking
-y = reg.coef_[0] * 3000 + reg.coef_[1] * 3 + reg.coef_[2] * 50 + reg.intercept_
-y
-
-
-**Logistic Regression**
-from google.colab import files
-import pandas as pd
-import matplotlib.pyplot as plt
-from sklearn import linear_model
-from sklearn.model_selection import train_test_split
-import warnings
-warnings.filterwarnings('ignore')
-
-logisticData.info()
-plt.scatter(logisticData.Age, logisticData.Purchased, marker='*', color='green')
-from sklearn.linear_model import LogisticRegression
-model = LogisticRegression()
-model.fit(logisticData[['Age']], logisticData.Purchased)
-model.predict([[27]])
-
-or
-
-X = sampleData[['Age']]
-Y = sampleData.Purchased
-x_train, x_test, y_train, y_test = train_test_split(X, Y, test_size=0.2)
-model.fit(x_train, y_train)
-y_pred = model.predict(x_test)
-y_pred
-print("Actual Price: ", y_test)
-print("Actual Price: ", y_pred)
-
-
-***Clustering***
-**Decision Tree**
-from google.colab import files
-import pandas as pd
-import warnings
-from sklearn.tree import DecisionTreeClassifier, plot_tree
-from sklearn import tree
-from sklearn.preprocessing import LabelEncoder
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, roc_auc_score, accuracy_score, classification_report
-warnings.filterwarnings('ignore')
-
-X = golf_df.drop(['Play'], axis=1)
-y = golf_df.Play
-
-one_hot_data = pd.get_dummies(X)
-one_hot_data = one_hot_data.astype(int)
-one_hot_data
-
-clf = DecisionTreeClassifier()
-clf
-
-plt.figure(figsize=(15, 10))
-plot_tree(clf_train, filled=True, rounded=True, fontsize=15, feature_names=one_hot_data.columns)
-plt.savefig('out_playgolf.pdf')
-
-prediction = clf_train.predict([[0, 0, 1, 0, 1, 0, 0, 1, 0]])
-prediction
-
-X_train, X_test, y_train, y_test = train_test_split(one_hot_data, y, test_size=0.3)
-
-clf = clf.fit(X_train, y_train)
-clf
-
-y_pred = clf.predict(X_test)
-
-accuracy_score(y_test, y_pred)
-
-cfm = confusion_matrix(y_test, y_pred)
-cfm
-
-//accuracy score
-accuracy_score(y_test, y_pred)
-
-//Precision score
-print(f"Computed: {precision_score(y_test, y_pred, average=None)}")
-
-//recall_score
-print(f"Computed: {recall_score(y_test, y_pred, average=None)}")
-
-
-//f1_score
-print(f"Computed: {f1_score(y_test, y_pred, average=None)}")
-
-//classification_report
-print(classification_report(y_test, y_pred, target_names = ['0', '1']))
-
-
-***KNN***
-from google.colab import files
-import pandas as pd
-import warnings
-from sklearn import tree
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import LabelEncoder
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, roc_auc_score, accuracy_score, classification_report
-warnings.filterwarnings('ignore')
-
-result_df.info()
-
-X = result_df.drop(['Result'], axis=1)
-y = result_df.Result
-
-knn = KNeighborsClassifier(n_neighbors=3)
-knn
-
-train_df = knn.fit(X, y)
-train_df
-
-prediction = train_df.predict([[6, 8]])
-
-prediction
-
---if u got iris data
-X = iris_df.drop(['variety'], axis=1)
-y = iris_df.variety
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-knn = KNeighborsClassifier(n_neighbors=50)
-knn
-train_df = knn.fit(X_train, y_train)
-train_df
-y_pred = knn.predict(X_test)
-print(f"Accuracy: {accuracy_score(y_test, y_pred)}")
-print(f"Precision: {precision_score(y_test, y_pred, average='weighted')}")
-print(f"Recall: {recall_score(y_test, y_pred, average='weighted')}")
-print(f"F1 Score: {f1_score(y_test, y_pred, average='weighted')}")
-
-
-***Hyperparameter Tunning
-from sklearn.model_selection import GridSearchCV
-
-grid_params = {
-    'n_neighbors': [5, 7, 9, 11, 13, 15],
-    'metric': ['minkowski', 'euclidean', 'manhattan']
-}
-gs = GridSearchCV(knn, grid_params, verbose=2, cv=3)
-gs
-g_res
-g_res.best_score_
-g_res.best_params_
-
-**Naive Bayes**
-flu_df = pd.read_csv(filename)
-X = flu_df.drop(['Flue'], axis=1)
-y = flu_df.Flue
-le = LabelEncoder()
-flu_df['Chills'] = le.fit_transform(flu_df['Chills'])
-flu_df['RunnyNose'] = le.fit_transform(flu_df['RunnyNose'])
-flu_df['Headache'] = le.fit_transform(flu_df['Headache'])
-flu_df['Fever'] = le.fit_transform(flu_df['Fever'])
-
-# Alternate way to perform lable encoding on X
-# X = X.apply(le.fit_transform)
-
-X = flu_df.drop(['Flue'], axis=1)
-berNB = BernoulliNB()
-berNB
-train_df = berNB.fit(X, y)
-train_df
-prediction = train_df.predict([[1, 0, 1, 1]])
-prediction
-
-
-**SVM-classifier**
-from google.colab import files
-import pandas as pd
-import warnings
-from sklearn.svm import SVC
-from sklearn.preprocessing import LabelEncoder
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, roc_auc_score, accuracy_score, classification_report
-warnings.filterwarnings('ignore')
-
-social_df = pd.read_csv(filename)
-
-X = social_df.drop(['Purchased', 'User ID',	'Gender'], axis=1)
-y = social_df.Purchased
-
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
-svModel = SVC(kernel='rbf')
-svModel.fit(X_train, y_train)
-y_pred = svModel.predict(X_test)
-y_pred
-accuracy_score(y_test, y_pred)
-
-//diff kernal
-//svModel2 = SVC(kernel='poly')
-//svm1 = svModel2.fit(X_train, y_train)
-//svm1
-
-//svModel3 = SVC(kernel='linear')
-//svm2 = svModel3.fit(X_train, y_train)
-//svm2
-
-
-***SVM***
-from google.colab import files
-import pandas as pd
-import warnings
-from sklearn.svm import SVC
-from sklearn.preprocessing import LabelEncoder
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, roc_auc_score, accuracy_score, classification_report
-warnings.filterwarnings('ignore')
-
-social_df = pd.read_csv(filename)
-X = social_df.drop(['Purchased', 'User ID',	'Gender'], axis=1)
-y = social_df.Purchased
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
-svModel = SVC(kernel='rbf')
-svModel.fit(X_train, y_train)
-y_pred = svModel.predict(X_test)
-y_pred
-accuracy_score(y_test, y_pred)
-
-
-**Random Forest**
---ada boost
-from google.colab import files
-import pandas as pd
-import warnings
-from sklearn.ensemble import AdaBoostClassifier
-from sklearn.svm import SVC
-from sklearn.tree import DecisionTreeClassifier, plot_tree
-from sklearn.preprocessing import LabelEncoder
-from sklearn.impute import SimpleImputer
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, roc_auc_score, accuracy_score, classification_report
-warnings.filterwarnings('ignore')
-
-titanic_df = pd.read_csv(filename2)
-
-titanic_df['Age'].fillna(titanic_df['Age'].median(), inplace=True)
-titanic_df['Embarked'].fillna(titanic_df['Embarked'].mode()[0], inplace=True)
-titanic_df['Fare'].fillna(titanic_df['Fare'].median(), inplace=True)
-titanic_df.drop('Cabin', axis=1, inplace=True)
-le = LabelEncoder()
-titanic_df['Sex'] = le.fit_transform(titanic_df['Sex'])
-titanic_df['Embarked'] = le.fit_transform(titanic_df['Embarked'])
-features = ['Pclass', 'Sex', 'Age', 'SibSp', 'Parch', 'Fare', 'Embarked']
-X = titanic_df[features]
-y = titanic_df['Survived']
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-print(titanic_df.isnull().sum())
-
---AdaBoost Classifer
-abc = AdaBoostClassifier(n_estimators=50, learning_rate=1, random_state=42)
-model = abc.fit(X_train, y_train)
-y_pred_abc = model.predict(X_test)
-
-print("AdaBoost Classifier:")
-print(confusion_matrix(y_test, y_pred_abc))
-print(classification_report(y_test, y_pred_abc))
-print("Accuracy:", accuracy_score(y_test, y_pred_abc))
-
-# Comparing Evaluation
-print("AdaBoost Classifier:")
-print(confusion_matrix(y_test, y_pred_abc))
-print(classification_report(y_test, y_pred_abc))
-print("Accuracy:", accuracy_score(y_test, y_pred_abc))
-
-print("\nDecision Tree Classifier:")
-print(confusion_matrix(y_test, y_pred_dtc))
-print(classification_report(y_test, y_pred_dtc))
-print("Accuracy:", accuracy_score(y_test, y_pred_dtc))
-
-
---Bagging
-
-from google.colab import files
-import pandas as pd
-import warnings
-from sklearn.ensemble import BaggingClassifier
-from sklearn.svm import SVC
-from sklearn.tree import DecisionTreeClassifier, plot_tree
-from sklearn.preprocessing import LabelEncoder
-from sklearn.impute import SimpleImputer
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, roc_auc_score, accuracy_score, classification_report
-warnings.filterwarnings('ignore')
-
-heart_df = pd.read_csv(filename)
-
-X = heart_df.drop(columns=["target"], axis=1)
-y = heart_df.target
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-bagging_model1 = BaggingClassifier(estimator= SVC(), n_estimators=100, oob_score=True, max_samples=0.8, random_state=42)
-bagging_model1
-bagging_model1.fit(X_train, y_train)
-bagging_model1.oob_score_
-
-//Hyperparameter Tunning
-bagging_model2 = BaggingClassifier(estimator= DecisionTreeClassifier(), n_estimators=100, oob_score=True, max_samples=0.8, random_state=42)
-bagging_model2.fit(X_train, y_train)
-bagging_model2.oob_score_
-
-
-//compare baggging and standalone
-model3 = DecisionTreeClassifier()
-model3.fit(X_train, y_train)
-y_pred1 = model3.predict(X_test)
-print(classification_report(y_test, y_pred1))
-model4 = SVC(kernel='rbf')
-model4.fit(X_train, y_train)
-y_pred2 = model4.predict(X_test)
-print(classification_report(y_test, y_pred2))
-
-
-//Cross validation
-score1 = cross_val_score(bagging_model1, X, y, cv=5)
-score1
-score1.mean()
-score2 = cross_val_score(bagging_model2, X, y, cv=5)
-score2.mean()
-score3 = cross_val_score(model3, X, y, cv=5)
-score3.mean()
-score4 = cross_val_score(model4, X, y, cv=5)
-score4.mean()
-
-mean_score1 = score1.mean()
-mean_score2 = score2.mean()
-mean_score3 = score3.mean()
-mean_score4 = score4.mean()
-
-data = {
-    "Model": ["Bagging Model 1 (SVC)", "Bagging Model 2 (Tree)", "Model 3 (Tree)", "Model 4 (SVC)"],
-    "Mean Score": [mean_score1, mean_score2, mean_score3, mean_score4]
+       out.println("<br><a href='index.html'>Back to Form</a>");
+       out.println("</body></html>");
+   }
 }
 
-comparison_df = pd.DataFrame(data
-comparison_df
 
-*****************************************************************************************************************************************************************
-https://docs.google.com/document/d/1jDz_eIpbCM_h2pbxMNF_PT6v9ZU8BU3ZDKyCyvoPZzk/edit?tab=t.0
+Output:
 
 
-https://docs.google.com/document/d/1fCW9J8oUBnU7Q9cXZizkRpDcflSPRhxpzM2P595aSeY/edit?usp=sharing
+
+PRACTICAL NO. 3
+
+
+Objective: Program to demonstrate Http session using cookies, URL rewritten, Hidden Fields.
+Program:
+
+pom.xml:
+<dependency>
+   <groupId>jakarta.servlet</groupId>
+   <artifactId>jakarta.servlet-api</artifactId>
+   <version>4.0.2</version>
+   <scope>provided</scope>
+</dependency>
+
+index.html:
+<!DOCTYPE html>
+<html>
+<head>
+   <title>Session Tracking Demo</title>
+</head>
+<body>
+<h2>User Registration</h2>
+<form action="SessionServlet" method="post">
+   Name: <input type="text" name="name" required><br><br>
+   Email: <input type="email" name="email" required><br><br>
+   <input type="submit" value="Submit">
+</form>
+</body>
+</html>
+
+
+
+SessionServlet.java:
+package org.kjsim;
+
+
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.net.URLEncoder;
+
+
+@WebServlet
+public class SessionServlet extends HttpServlet {
+   @Override
+   protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+       String name = request.getParameter("name");
+       String email = request.getParameter("email");
+
+
+       // store in cookie
+       Cookie nameCookie = new Cookie("username", name);
+       response.addCookie(nameCookie);
+
+
+       // URL Rewriting: Append email as a parameter
+       String encodedEmail = URLEncoder.encode(email, "UTF-8");
+       String redirectURL = "ConfirmServlet?email=" + encodedEmail;
+
+
+       // Hidden Field: Generate a session ID (for demonstration)
+       String sessionId = "SESS_" + System.currentTimeMillis();
+
+
+       response.sendRedirect(redirectURL + "&sessionId=" + sessionId);
+   }
+}
+
+ConfirmServlet.java:
+package org.kjsim;
+
+
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.io.PrintWriter;
+
+
+@WebServlet("/ConfirmServlet")
+public class ConfirmServlet extends HttpServlet {
+   @Override
+   protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+       String email = request.getParameter("email");
+       String sessionId = request.getParameter("sessionId");
+
+
+       response.setContentType("text/html");
+       PrintWriter out = response.getWriter();
+       out.println("<html><body>");
+       out.println("<h2>Confirm Details</h2>");
+       out.println("<form action='DisplayServlet' method='post'>");
+       out.println("<input type='hidden' name='email' value='" + email + "'>");
+       out.println("<input type='hidden' name='sessionId' value='" + sessionId + "'>");
+       out.println("<input type='submit' value='Confirm'>");
+       out.println("</form>");
+       out.println("</body></html>");
+   }
+}
+
+DisplayServlet.java
+package org.kjsim;
+
+
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.io.PrintWriter;
+
+
+@WebServlet("/DisplayServlet")
+public class DisplayServlet extends HttpServlet {
+   protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+       //Retrieve from cookie
+       String name = null;
+       Cookie[] cookies =  request.getCookies();
+       if(cookies!=null){
+           for(Cookie cookie : cookies){
+               if("username".equals(cookie.getName())){
+                   name = cookie.getValue();
+                   break;
+               }
+           }
+       }
+
+
+       // Retrieve from URL (Via hidden field)
+       String sessionId = request.getParameter("sessionId");
+
+
+       // Retrieve from hidden field
+       String email = request.getParameter("email");
+
+
+       response.setContentType("text/html");
+       PrintWriter out = response.getWriter();
+       out.println("<html><body>");
+       out.println("<h2>Session Tracking Methods:</h2>");
+       out.println("<ul>");
+       out.println("<li>Cookie (Name): " + name + "</li>");
+       out.println("<li>URL Rewriting (Session ID): " + sessionId + "</li>");
+       out.println("<li>Hidden Field (Email): " + email + "</li>");
+       out.println("</ul>");
+       out.println("</body></html>");
+   }
+}
+
+Output:
+
+
+
+PRACTICAL NO. 4
+
+
+Objective: Program to demonstrate online web applications (Online Quiz) 
+Program:
+
+pom.xml:
+<dependencies>
+   <!-- Servlet API -->
+   <dependency>
+       <groupId>jakarta.servlet</groupId>
+       <artifactId>jakarta.servlet-api</artifactId>
+       <version>4.0.2</version>
+       <scope>provided</scope>
+   </dependency>
+
+
+   <!-- MySQL Connector -->
+   <dependency>
+       <groupId>com.mysql</groupId>
+       <artifactId>mysql-connector-j</artifactId>
+       <version>8.2.0</version>
+   </dependency>
+</dependencies>
+
+Database setup:
+CREATE DATABASE quiz_db;
+USE quiz_db;
+
+CREATE TABLE questions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    question_text VARCHAR(255),
+    option1 VARCHAR(100),
+    option2 VARCHAR(100),
+    option3 VARCHAR(100),
+    option4 VARCHAR(100),
+    correct_option INT
+);
+
+INSERT INTO questions (question_text, option1, option2, option3, option4, correct_option) VALUES
+('What is Java?', 'Programming Language', 'Coffee', 'Island', 'Car', 1),
+('What is JDBC?', 'Java Database Connectivity', 'JSON Database Call', 'Java Data', 'None', 1);
+
+QuizServlet.java
+package org.kjsim;
+
+
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.*;
+import java.io.*;
+import java.sql.*;
+import java.util.*;
+
+
+
+
+@WebServlet("/QuizServlet")
+public class QuizServlet extends HttpServlet {
+   private Connection conn;
+
+
+   @Override
+   public void init() {
+       try {
+           Class.forName("com.mysql.cj.jdbc.Driver");
+           conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/quiz_db", "root", "root");
+       } catch(Exception e) {
+           e.printStackTrace();
+       }
+   }
+
+
+   @Override
+   protected void doGet(HttpServletRequest request, HttpServletResponse response)
+           throws IOException {
+       HttpSession session = request.getSession(true);
+       response.setContentType("text/html");
+       PrintWriter out = response.getWriter();
+
+
+       // Fetch questions if not in session
+       List<Map<String, Object>> questions = (List<Map<String, Object>>) session.getAttribute("questions");
+       if (questions == null) {
+           questions = fetchQuestions();
+           session.setAttribute("questions", questions);
+           session.setAttribute("currentIndex", 0);
+           session.setAttribute("userAnswers", new HashMap<Integer, Integer>());
+       }
+
+
+       int currentIndex = (Integer) session.getAttribute("currentIndex");
+       if (currentIndex >= questions.size()) {
+           displayResults(out, questions, session);
+       } else {
+           // Fix: Remove extra parenthesis after questions.get(currentIndex)
+           displayQuestion(out, questions.get(currentIndex), currentIndex);
+       }
+   }
+
+
+   @Override
+   protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
+       HttpSession session = request.getSession();
+       int currentIndex = (Integer) session.getAttribute("currentIndex");
+       Map<Integer, Integer> userAnswers = (HashMap<Integer, Integer>) session.getAttribute("userAnswers");
+       int answer = Integer.parseInt(request.getParameter("answer"));
+
+
+       userAnswers.put(currentIndex, answer);
+       session.setAttribute("currentIndex", currentIndex + 1);
+       response.sendRedirect("QuizServlet");
+   }
+
+
+   private List<Map<String, Object>> fetchQuestions() {
+       List<Map<String, Object>> questions = new ArrayList<>();
+       String sql = "SELECT * FROM questions";
+       try (Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql)) {
+           while (rs.next()) {
+               Map<String, Object> q = new HashMap<>();
+               q.put("id", rs.getInt("id"));
+               q.put("text", rs.getString("question_text"));
+               q.put("options", new String[]{
+                       rs.getString("option1"),
+                       rs.getString("option2"),
+                       rs.getString("option3"),
+                       rs.getString("option4")
+               });
+               q.put("correct", rs.getInt("correct_option"));
+               questions.add(q);
+           }
+       } catch (SQLException e) {
+           e.printStackTrace();
+       }
+       return questions;
+   }
+
+
+   private void displayQuestion(PrintWriter out, Map<String, Object> question, int index) {
+       out.println("<html><body>");
+       out.println("<h2>Question " + (index + 1) + "</h2>");
+       out.println("<form method='post'>");
+       out.println("<p>" + question.get("text") + "</p>");
+       String[] options = (String[]) question.get("options");
+       for (int i = 0; i < options.length; i++) {
+           out.println("<input type='radio' name='answer' value='" + (i+1) + "'> " + options[i] + "<br>");
+       }
+       out.println("<input type='submit' value='Next'>");
+       out.println("</form></body></html>");
+   }
+
+
+   private void displayResults(PrintWriter out, List<Map<String, Object>> questions, HttpSession session) {
+       Map<Integer, Integer> userAnswers = (HashMap<Integer, Integer>) session.getAttribute("userAnswers");
+       int score = 0;
+
+
+       out.println("<html><body>");
+       out.println("<h2>Quiz Results</h2>");
+       for (int i = 0; i < questions.size(); i++) {
+           int correct = (Integer) questions.get(i).get("correct");
+           int userAnswer = userAnswers.get(i);
+           if (userAnswer == correct) score++;
+           out.println("<p>Question " + (i+1) + ": " + questions.get(i).get("text") + "</p>");
+           out.println("<p>Your Answer: " + ((String[]) questions.get(i).get("options"))[userAnswer-1] +
+                   (userAnswer == correct ? " (Correct)" : " (Incorrect)") + "</p><hr>");
+       }
+       out.println("<h3>Total Score: " + score + "/" + questions.size() + "</h3>");
+       out.println("</body></html>");
+       session.invalidate(); // Clear session after quiz
+   }
+
+
+   @Override
+   public void destroy() {
+       try {
+           conn.close();
+       } catch (SQLException e) {
+           e.printStackTrace();
+       }
+   }
+}
+
+Output:
+
+
+
+
+PRACTICAL NO. 5
+
+
+Objective: Program to demonstrate Page directives with JSP.
+Program:
+
+index.jsp:
+<%@ page import="java.util.Date" %>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page errorPage="error.jsp" %>
+
+
+<html>
+<head>
+   <title>JSP Directives Demo</title>
+</head>
+<body>
+<h2>Page Directives Example</h2>
+
+
+<!-- Use imported Date class -->
+<p>Current Time: <%= new Date() %></p>
+
+
+<!-- Force an error (division by zero) -->
+<%
+   int x = 10 / 0; // This will throw ArithmeticException
+%>
+</body>
+</html>
+
+error.jsp:
+<%@ page isErrorPage="true" %>
+<%@ page contentType="text/html;charset=UTF-8" %>
+
+
+<html>
+<head>
+ <title>Error Page</title>
+</head>
+<body>
+<h2>Error Occurred!</h2>
+<p>Exception: <%= exception.getClass().getName() %></p>
+<p>Message: <%= exception.getMessage() %></p>
+</body>
+</html>
+
+Output:
+
+
+PRACTICAL NO. 6
+
+
+Objective: Program to demonstrate Http session using cookies.
+Program:
+
+pom.xml:
+<packaging>war</packaging>
+
+
+<dependencies>
+   <!-- https://mvnrepository.com/artifact/jakarta.servlet/jakarta.servlet-api -->
+   <dependency>
+       <groupId>jakarta.servlet</groupId>
+       <artifactId>jakarta.servlet-api</artifactId>
+       <version>4.0.2</version>
+       <scope>provided</scope>
+   </dependency>
+</dependencies>
+
+
+<build>
+   <plugins>
+       <plugin>
+           <!-- https://mvnrepository.com/artifact/org.apache.maven.plugins/maven-war-plugin -->
+           <groupId>org.apache.maven.plugins</groupId>
+           <artifactId>maven-war-plugin</artifactId>
+           <version>3.3.1</version>
+       </plugin>
+   </plugins>
+</build>
+
+index.html:
+<!DOCTYPE html>
+<html>
+<head>
+ <title>Login Demo</title>
+</head>
+<body>
+<h2>Login Form</h2>
+ <form action="LoginServlet" method="post">
+   Username: <input type="text" name="username" required><br><br>
+   Password: <input type="password" name="password" required><br><br>
+   <input type="submit" value="Login">
+ </form>
+ <% if(request.getParameter("error") != null) { %>
+   <p style="color: red">Invalid credentials!</p>
+ <% } %>
+</body>
+</html>
+
+
+
+LoginServlet.java:
+import javax.servlet.*;
+import javax.servlet.http.*;
+import javax.servlet.annotation.*;
+import java.io.IOException;
+
+
+@WebServlet("/LoginServlet")
+public class LoginServlet extends HttpServlet {
+   protected void doPost(HttpServletRequest request, HttpServletResponse response)
+           throws ServletException, IOException {
+
+
+       String username = request.getParameter("username");
+       String password = request.getParameter("password");
+
+
+       if ("admin".equals(username) && "admin".equals(password)) {
+           // 1. HttpSession (Server-side storage)
+           HttpSession session = request.getSession();
+           session.setAttribute("username", username);
+           session.setAttribute("loginTime", System.currentTimeMillis());
+
+
+           // 2. Cookies (Client-side storage)
+           Cookie userCookie = new Cookie("userCookie", username);
+           userCookie.setMaxAge(30*60); // 30 minutes
+           response.addCookie(userCookie);
+
+
+           // 3. URL Rewriting (Append parameters)
+           String encodedURL = response.encodeURL("WelcomeServlet?userParam=" + username);
+           response.sendRedirect(encodedURL);
+       } else {
+           response.sendRedirect("index.html?error=1");
+       }
+   }
+}
+
+
+
+WelcomeServlet.java:
+import javax.servlet.*;
+import javax.servlet.http.*;
+import javax.servlet.annotation.*;
+import java.io.*;
+import java.util.Date;
+
+
+@WebServlet("/WelcomeServlet")
+public class WelcomeServlet extends HttpServlet {
+   protected void doGet(HttpServletRequest request, HttpServletResponse response)
+           throws ServletException, IOException {
+
+
+       response.setContentType("text/html");
+       PrintWriter out = response.getWriter();
+
+
+       // Get data from all three sources
+       String sessionUser = (String) request.getSession().getAttribute("username");
+       String cookieUser = getCookieValue(request, "userCookie");
+       String paramUser = request.getParameter("userParam");
+
+
+       out.println("<html><head><title>Welcome</title></head><body>");
+       out.println("<h2>Session Tracking Demo</h2>");
+
+
+       // Display all values
+       out.println("<h3>User Information:</h3>");
+       out.println("<ul>");
+       out.println("<li>From Session: " + sessionUser + "</li>");
+       out.println("<li>From Cookie: " + cookieUser + "</li>");
+       out.println("<li>From URL Parameter: " + paramUser + "</li>");
+       out.println("</ul>");
+
+
+       // Additional session info
+       HttpSession session = request.getSession();
+       out.println("<h3>Session Details:</h3>");
+       out.println("<ul>");
+       out.println("<li>Session ID: " + session.getId() + "</li>");
+       out.println("<li>Created: " + new Date(session.getCreationTime()) + "</li>");
+       out.println("<li>Last Accessed: " + new Date(session.getLastAccessedTime()) + "</li>");
+       out.println("<li>Timeout: " + session.getMaxInactiveInterval() + " seconds</li>");
+       out.println("</ul>");
+
+
+       // Logout link with URL rewriting
+       String logoutURL = response.encodeURL("LogoutServlet");
+       out.println("<a href='" + logoutURL + "'>Logout</a>");
+       out.println("</body></html>");
+   }
+
+
+   private String getCookieValue(HttpServletRequest request, String name) {
+       Cookie[] cookies = request.getCookies();
+       if (cookies != null) {
+           for (Cookie cookie : cookies) {
+               if (cookie.getName().equals(name)) {
+                   return cookie.getValue();
+               }
+           }
+       }
+       return "Not found";
+   }
+}
+
+
+
+LogoutServlet.java:
+import javax.servlet.*;
+import javax.servlet.http.*;
+import javax.servlet.annotation.*;
+import java.io.IOException;
+
+
+@WebServlet("/LogoutServlet")
+public class LogoutServlet extends HttpServlet {
+   protected void doGet(HttpServletRequest request, HttpServletResponse response)
+           throws ServletException, IOException {
+
+
+       // 1. Invalidate session
+       HttpSession session = request.getSession(false);
+       if (session != null) {
+           session.invalidate();
+       }
+
+
+       // 2. Expire cookie
+       Cookie cookie = new Cookie("userCookie", "");
+       cookie.setMaxAge(0);
+       response.addCookie(cookie);
+
+
+       // 3. Redirect to login
+       response.sendRedirect("index.html");
+   }
+}
+
+Output:
+
+
+
+
+PRACTICAL NO. 7
+
+
+Objective: Program to demonstrate Error Page in JSP.
+Program:
+
+index.jsp:
+<%@ page import="java.util.Date" %>
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page errorPage="error.jsp" %>
+
+
+<html>
+<head>
+   <title>JSP Directives Demo</title>
+</head>
+<body>
+<h2>Page Directives Example</h2>
+
+
+<!-- Use imported Date class -->
+<p>Current Time: <%= new Date() %></p>
+
+
+<!-- Force an error (division by zero) -->
+<%
+   int x = 10 / 0; // This will throw ArithmeticException
+%>
+</body>
+</html>
+
+error.jsp:
+<%@ page isErrorPage="true" %>
+<%@ page contentType="text/html;charset=UTF-8" %>
+
+
+<html>
+<head>
+ <title>Error Page</title>
+</head>
+<body>
+<h2>Error Occurred!</h2>
+<p>Exception: <%= exception.getClass().getName() %></p>
+<p>Message: <%= exception.getMessage() %></p>
+</body>
+</html>
+
+Output:
+
+
+
+PRACTICAL NO. 8
+
+
+Objective: Program to demonstrate JSP Actions, JSP with beans
+Program:
+
+pom.xml:
+<dependency>
+   <groupId>jakarta.servlet</groupId>
+   <artifactId>jakarta.servlet-api</artifactId>
+   <version>4.0.2</version>
+   <scope>provided</scope>
+</dependency>
+
+UserBean.java:
+package org.kjsim.bean;
+
+
+public class UserBean {
+   private String name;
+
+
+   public String getName() {
+       return name;
+   }
+
+
+   public void setName(String name) {
+       this.name = name;
+   }
+}
+
+input.jsp:
+<!DOCTYPE html>
+<html>
+<head>
+   <title>Bean Input</title>
+</head>
+<body>
+<h2>Enter Your Name</h2>
+<form action="result.jsp" method="post">
+   Name: <input type="text" name="username" required><br><br>
+   <input type="submit" value="Submit">
+</form>
+</body>
+</html>
+
+result.jsp
+<%@ page language="java" import="org.kjsim.bean.UserBean" %>
+<jsp:useBean id="user" class="org.kjsim.bean.UserBean" scope="request" />
+<jsp:setProperty name="user" property="name" param="username" />
+
+
+<!DOCTYPE html>
+<html>
+<head>
+   <title>Result</title>
+</head>
+<body>
+<h2>Welcome, <jsp:getProperty name="user" property="name" />!</h2>
+</body>
+</html>
+
+Output:
+
+
+
+
+PRACTICAL NO. 9
+
+
+Objective: Program to demonstrate to custom tags, JSTL tags.
+Program:
+
+pom.xml:
+<!-- JSTL API -->
+<dependency>
+   <groupId>jakarta.servlet.jsp.jstl</groupId>
+   <artifactId>jakarta.servlet.jsp.jstl-api</artifactId>
+   <version>3.0.0</version>
+   <scope>provided</scope>
+</dependency>
+
+
+<!-- JSTL Implementation -->
+<dependency>
+   <groupId>org.glassfish.web</groupId>
+   <artifactId>jakarta.servlet.jsp.jstl</artifactId>
+   <version>3.0.1</version>
+</dependency>
+
+
+<dependency>
+   <groupId>jakarta.servlet</groupId>
+   <artifactId>jakarta.servlet-api</artifactId>
+   <version>4.0.2</version>
+   <scope>provided</scope>
+</dependency>
+
+1. Custom Tags
+
+a. Create a Custom Tag Handler Class
+
+HelloTag.java:
+package org.kjsim.tags;
+
+
+import javax.servlet.jsp.tagext.*;
+import javax.servlet.jsp.*;
+import java.io.*;
+
+
+public class HelloTag extends SimpleTagSupport {
+   private String name;
+
+
+   public void setName(String name) {
+       this.name = name;
+   }
+
+
+   @Override
+   public void doTag() throws JspException, IOException {
+       JspWriter out = getJspContext().getOut();
+       out.print("Hello, " + name + "! 👋");
+   }
+}
+
+b. Define the Tag Library Descriptor (TLD)
+
+mytags.tld (Place in WEB-INF/):
+<?xml version="1.0" encoding="UTF-8"?>
+<taglib version="2.1" xmlns="http://java.sun.com/xml/ns/javaee"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-jsptaglibrary_2_1.xsd">
+   <tlib-version>1.0</tlib-version>
+   <short-name>mytags</short-name>
+   <uri>/mytags</uri>
+
+
+   <tag>
+       <name>hello</name>
+       <tag-class>org.kjsim.tags.HelloTag</tag-class>
+       <body-content>empty</body-content>
+       <attribute>
+           <name>name</name>
+           <required>true</required>
+           <rtexprvalue>true</rtexprvalue>
+       </attribute>
+   </tag>
+</taglib>
+
+c. Use the Custom Tag in JSP
+
+customTagDemo.jsp:
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ taglib prefix="mytags" uri="/mytags" %>
+
+
+<html>
+<head>
+ <title>Custom Tag Demo</title>
+</head>
+<body>
+<h2>Custom Tag Example</h2>
+<mytags:hello name="Alice"/>
+</body>
+</html>
+
+Output:
+
+
+
+2. JSTL Tags
+
+pom.xml:
+<dependency>
+   <groupId>javax.servlet</groupId>
+   <artifactId>jstl</artifactId>
+   <version>1.2</version>
+</dependency>
+
+jstlDemo.jsp
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
+
+
+<html>
+<head>
+ <title>JSTL Demo</title>
+</head>
+<body>
+<h2>JSTL Core Tags Example</h2>
+
+
+<c:set var="items" value="Apple,Banana,Cherry" scope="page" />
+
+
+<c:set var="itemsArray" value="${fn:split(items, ',')}" />
+
+
+<h3>Loop with &lt;c:forEach&gt;:</h3>
+<ul>
+ <c:forEach items="${itemsArray}" var="item">
+   <li><c:out value="${item}"/></li>
+ </c:forEach>
+</ul>
+
+
+<h3>Condition with &lt;c:if&gt;:</h3>
+<c:if test="${not empty itemsArray}">
+ <p>Total items: ${fn:length(itemsArray)}</p>
+</c:if>
+</body>
+</html>
+
+
+Output:
+
+
+PRACTICAL NO. 10
+
+
+Objective: Program to demonstrate simple XML tags
+Program:
+
+students.xml:
+<?xml version="1.0" encoding="UTF-8"?>
+<students>
+   <student>
+       <roll>101</roll>
+       <name>Amit</name>
+       <course>BCA</course>
+   </student>
+   <student>
+       <roll>102</roll>
+       <name>Reena</name>
+       <course>MCA</course>
+   </student>
+</students>
+
+XMLReader.java
+package org.kjsim;
+
+
+import javax.xml.parsers.*;
+import org.w3c.dom.*;
+import java.io.*;
+
+
+public class XMLReader {
+   public static void main(String[] args) throws Exception {
+       File file = new File("src/main/java/org/kjsim/students.xml");
+       DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+       DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+
+
+       Document doc = dBuilder.parse(file);
+       doc.getDocumentElement().normalize();
+
+
+       NodeList list = doc.getElementsByTagName("student");
+
+
+       for (int i = 0; i < list.getLength(); i++) {
+           Node node = list.item(i);
+           Element element = (Element) node;
+
+
+           System.out.println("Roll: " + element.getElementsByTagName("roll").item(0).getTextContent());
+           System.out.println("Name: " + element.getElementsByTagName("name").item(0).getTextContent());
+           System.out.println("Course: " + element.getElementsByTagName("course").item(0).getTextContent());
+           System.out.println();
+       }
+   }
+}
+
+Output:
+
+PRACTICAL NO. 11
+
+
+Objective: Program to demonstrate DTD, XML Parser, Validator..
+Program:
+
+catalog.dtd:
+<!ELEMENT students (student+)>
+       <!ELEMENT student (roll, name, course)>
+       <!ELEMENT roll (#PCDATA)>
+       <!ELEMENT name (#PCDATA)>
+       <!ELEMENT course (#PCDATA)>
+
+students.dtd:
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE students SYSTEM "students.dtd">
+<students>
+   <student>
+       <roll>101</roll>
+       <name>Amit</name>
+       <course>BCA</course>
+   </student>
+   <student>
+       <roll>102</roll>
+       <name>Reena</name>
+       <course>MCA</course>
+   </student>
+</students>
+
+XMLValidator.java
+package org.kjsim;
+
+
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.DocumentBuilder;
+import org.w3c.dom.Document;
+import org.xml.sax.SAXException;
+import org.xml.sax.SAXParseException;
+import org.xml.sax.helpers.DefaultHandler;
+
+
+import java.io.File;
+
+
+public class XMLValidator {
+   public static void main(String[] args) {
+       try {
+           DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+           factory.setValidating(true);
+           factory.setNamespaceAware(false);
+
+
+           DocumentBuilder builder = factory.newDocumentBuilder();
+
+
+           builder.setErrorHandler(new DefaultHandler() {
+               @Override
+               public void error(SAXParseException e) throws SAXException {
+                   throw e;
+               }
+
+
+               @Override
+               public void fatalError(SAXParseException e) throws SAXException {
+                   throw e;
+               }
+
+
+               @Override
+               public void warning(SAXParseException e) throws SAXException {
+                   System.out.println("Warning: " + e.getMessage());
+               }
+           });
+
+
+           Document doc = builder.parse(new File("src/main/resources/students.xml"));
+           System.out.println("XML is valid and parsed successfully.");
+
+
+       } catch (Exception e) {
+           System.out.println("Validation Error: " + e.getMessage());
+       }
+   }
+}
+
+Output:
+
+PRACTICAL NO. 12
+
+
+Objective: Program to Write a Hibernate Application, Configuring Hibernate for our application.
+Program:
+
+pom.xml:
+<dependency>
+   <groupId>org.hibernate.orm</groupId>
+   <artifactId>hibernate-core</artifactId>
+   <version>6.2.7.Final</version>
+</dependency>
+<dependency>
+   <groupId>com.mysql</groupId>
+   <artifactId>mysql-connector-j</artifactId>
+   <version>8.2.0</version>
+</dependency>
+<dependency>
+   <groupId>jakarta.persistence</groupId>
+   <artifactId>jakarta.persistence-api</artifactId>
+   <version>3.1.0</version>
+</dependency>
+
+
+
+Student.java:
+package org.kjsim;
+
+
+import jakarta.persistence.*;
+
+
+@Entity
+@Table(name = "students")
+public class Student {
+
+
+   @Id
+   @GeneratedValue(strategy = GenerationType.IDENTITY)
+   private int id;
+
+
+   @Column(name = "name")
+   private String name;
+
+
+   @Column(name = "course")
+   private String course;
+
+
+   // Getters & Setters
+   public int getId() { return id; }
+   public void setId(int id) { this.id = id; }
+
+
+   public String getName() { return name; }
+   public void setName(String name) { this.name = name; }
+
+
+   public String getCourse() { return course; }
+   public void setCourse(String course) { this.course = course; }
+}
+
+hibernate.cfg.xml:
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-configuration PUBLIC
+       "-//Hibernate/Hibernate Configuration DTD 3.0//EN"
+       "http://www.hibernate.org/dtd/hibernate-configuration-3.0.dtd">
+<hibernate-configuration>
+   <session-factory>
+       <property name="hibernate.connection.driver_class">com.mysql.cj.jdbc.Driver</property>
+       <property name="hibernate.connection.url">jdbc:mysql://localhost:3306/testdb</property>
+       <property name="hibernate.connection.username">root</property>
+       <property name="hibernate.connection.password">root</property>
+
+
+       <property name="hibernate.dialect">org.hibernate.dialect.MySQLDialect</property>
+       <property name="hibernate.hbm2ddl.auto">update</property>
+       <property name="hibernate.show_sql">true</property>
+
+
+       <mapping class="org.kjsim.Student"/>
+   </session-factory>
+</hibernate-configuration>
+
+
+App.java:
+package org.kjsim;
+
+
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.cfg.Configuration;
+
+
+public class App {
+   public static void main(String[] args) {
+       Configuration cfg = new Configuration().configure();
+       SessionFactory factory = cfg.buildSessionFactory();
+
+
+       Session session = factory.openSession();
+       session.beginTransaction();
+
+
+       Student student = new Student();
+       student.setName("Amit");
+       student.setCourse("MCA");
+
+
+       session.persist(student);
+       session.getTransaction().commit();
+
+
+       System.out.println("Student saved successfully.");
+
+
+       session.close();
+       factory.close();
+   }
+}
+
+Output:
+
+
+PRACTICAL NO. 13
+
+
+Objective: Program to fetch data from the database using Hibernate and Annotations.
+Program:
+
+pom.xml:
+<dependency>
+   <groupId>org.hibernate.orm</groupId>
+   <artifactId>hibernate-core</artifactId>
+   <version>6.2.7.Final</version>
+</dependency>
+<dependency>
+   <groupId>com.mysql</groupId>
+   <artifactId>mysql-connector-j</artifactId>
+   <version>8.2.0</version>
+</dependency>
+<dependency>
+   <groupId>jakarta.persistence</groupId>
+   <artifactId>jakarta.persistence-api</artifactId>
+   <version>3.1.0</version>
+</dependency>
+
+Student.java:
+package org.kjsim;
+
+
+import jakarta.persistence.*;
+
+
+@Entity
+@Table(name = "students")
+public class Student {
+
+
+   @Id
+   @GeneratedValue(strategy = GenerationType.IDENTITY)
+   private int id;
+
+
+   private String name;
+   private String course;
+
+
+   // Getters & Setters
+   public int getId() { return id; }
+   public void setId(int id) { this.id = id; }
+
+
+   public String getName() { return name; }
+   public void setName(String name) { this.name = name; }
+
+
+   public String getCourse() { return course; }
+   public void setCourse(String course) { this.course = course; }
+}
+
+hibernate.cfg.xml:
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-configuration PUBLIC
+       "-//Hibernate/Hibernate Configuration DTD 3.0//EN"
+       "http://www.hibernate.org/dtd/hibernate-configuration-3.0.dtd">
+
+
+<hibernate-configuration>
+   <session-factory>
+       <property name="hibernate.connection.driver_class">com.mysql.cj.jdbc.Driver</property>
+       <property name="hibernate.connection.url">jdbc:mysql://localhost:3306/testdb</property>
+       <property name="hibernate.connection.username">root</property>
+       <property name="hibernate.connection.password">root</property>
+       <property name="hibernate.dialect">org.hibernate.dialect.MySQLDialect</property>
+       <property name="hibernate.show_sql">true</property>
+       <property name="hibernate.hbm2ddl.auto">update</property>
+       <mapping class="org.kjsim.Student"/>
+   </session-factory>
+</hibernate-configuration>
+
+FetchApp.java:
+package org.kjsim;
+
+
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.cfg.Configuration;
+
+
+import java.util.List;
+
+
+public class FetchApp {
+   public static void main(String[] args) {
+       Configuration cfg = new Configuration().configure();
+       SessionFactory factory = cfg.buildSessionFactory();
+
+
+       Session session = factory.openSession();
+
+
+       List<Student> list = session.createQuery("FROM Student", Student.class).list();
+
+
+       for (Student s : list) {
+           System.out.println("ID: " + s.getId());
+           System.out.println("Name: " + s.getName());
+           System.out.println("Course: " + s.getCourse());
+           System.out.println("-----");
+       }
+
+
+       session.close();
+       factory.close();
+   }
+}
+
+Output:
+
+PRACTICAL NO. 14
+
+
+Objective: Building first Spring Application.
+Program:
+
+pom.xml:
+<dependency>
+   <groupId>org.springframework</groupId>
+   <artifactId>spring-context</artifactId>
+   <version>5.3.32</version>
+</dependency>
+
+HelloService.java:
+package org.kjsim;
+
+
+public class HelloService {
+   private String message;
+
+
+   public void setMessage(String message) {
+       this.message = message;
+   }
+
+
+   public void sayHello() {
+       System.out.println("Spring says: " + message);
+   }
+}
+
+applicationContext.xml:
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+       http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+
+   <bean id="helloService" class="org.kjsim.HelloService">
+       <property name="message" value="Welcome to Spring Framework!" />
+   </bean>
+</beans>
+
+MainApp.java:
+package org.kjsim;
+
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+
+public class MainApp {
+   public static void main(String[] args) {
+       ApplicationContext context = new ClassPathXmlApplicationContext("applicationContext.xml");
+
+
+       HelloService service = (HelloService) context.getBean("helloService");
+       service.sayHello();
+   }
+}
+
+Output:
+
+PRACTICAL NO. 15
+
+
+Objective: Simple web application using Spring
+Program:
+
+pom.xml:
+<!-- Spring MVC -->
+<dependency>
+   <groupId>org.springframework</groupId>
+   <artifactId>spring-webmvc</artifactId>
+   <version>5.3.32</version>
+</dependency>
+
+
+<!-- Servlet API -->
+<dependency>
+   <groupId>jakarta.servlet</groupId>
+   <artifactId>jakarta.servlet-api</artifactId>
+   <version>4.0.2</version>
+   <scope>provided</scope>
+</dependency>
+
+
+<!-- JSP -->
+<dependency>
+   <groupId>jakarta.servlet.jsp.jstl</groupId>
+   <artifactId>jakarta.servlet.jsp.jstl-api</artifactId>
+   <version>3.0.0</version>
+</dependency>
+<dependency>
+   <groupId>org.glassfish.web</groupId>
+   <artifactId>jakarta.servlet.jsp.jstl</artifactId>
+   <version>3.0.1</version>
+</dependency>
+
+web.xml:
+<web-app xmlns="http://jakarta.ee/xml/ns/jakartaee"
+        version="4.0">
+
+
+   <servlet>
+       <servlet-name>spring</servlet-name>
+       <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+       <init-param>
+           <param-name>contextConfigLocation</param-name>
+           <param-value>/WEB-INF/spring-config.xml</param-value>
+       </init-param>
+       <load-on-startup>1</load-on-startup>
+   </servlet>
+
+
+   <servlet-mapping>
+       <servlet-name>spring</servlet-name>
+       <url-pattern>/</url-pattern>
+   </servlet-mapping>
+
+
+   <welcome-file-list>
+       <welcome-file>index.jsp</welcome-file>
+   </welcome-file-list>
+
+
+</web-app>
+
+spring-config.xml:
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+      xmlns:context="http://www.springframework.org/schema/context"
+      xmlns:mvc="http://www.springframework.org/schema/mvc"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+        http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/context
+        http://www.springframework.org/schema/context/spring-context.xsd
+        http://www.springframework.org/schema/mvc
+        http://www.springframework.org/schema/mvc/spring-mvc.xsd">
+
+
+   <context:component-scan base-package="org.kjsim"/>
+   <mvc:annotation-driven />
+
+
+   <bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+       <property name="prefix" value="/WEB-INF/views/" />
+       <property name="suffix" value=".jsp" />
+   </bean>
+</beans>
+
+HomeController.java:
+package org.kjsim;
+
+
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+
+
+@Controller
+public class HomeController {
+
+
+   @GetMapping("/")
+   public String home(Model model) {
+       model.addAttribute("message", "Welcome to Spring MVC!");
+       return "home";
+   }
+}
+
+home.jsp:
+<%@ page contentType="text/html;charset=UTF-8" %>
+<html>
+<head>
+ <title>Spring MVC Home</title>
+</head>
+<body>
+<h2>${message}</h2>
+</body>
+</html>
