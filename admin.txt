@@ -1242,8 +1242,628 @@ Accuracy, Precision, Recall, F1-Score, Confusion Matrix
 
 Do Cross Validation and Hyperparameter Tuning
 
+*****************************************************************************************************************************************************************
+***Data PreProssing***
+
+//Box plot will help us to find out the mean values
+import seaborn as sns
+sns.boxplot(data=titanic, x=titanic.Pclass, y=titanic.Age, palette='rocket')
 
 
+//Accuracy (True Positive )
+tn, fp, fn, tp = cfm.ravel()
+accuracy = (tp + tn) / (tn + fp + fn + tp)
+accuracy
+
+//One Hot Encoding 
+titanic_dummies = pd.get_dummies(titanic_cat2).astype(int)
+
+
+//LabelEncoding
+from sklearn.preprocessing import LabelEncoder
+le = LabelEncoder()
+le.fit_transform(titanic_cat2['Embarked'])
+
+
+//Matplotlib & SNS
+--Heatmap
+  sns.heatmap(df.isnull(), yticklabels=False)
+
+
+--Count plot
+A count plot can be thought of as a histogram across a categorical, instead of quantitative, variable.
+  sns.countplot(data=df, x='Survived', hue='Sex')
+
+--displot
+### To see the distribution of age throughout the data.
+sns.distplot(df['Age'])
+
+
+***Unsupervised Learning***
+
+
+***--Apriori Algo***
+
+df = pd.read_csv('/content/puchased_data.csv.csv', header=None)
+print(df.to_string())
+
+import numpy as np
+
+records = []
+for i in range(len(df)):
+    row = []
+    for j in range(len(df.columns)):
+        value = df.values[i, j]
+        if pd.notna(value):
+            row.append(str(value))
+    records.append(row)
+
+records
+
+!pip install apyori
+from apyori import apriori
+
+association_rule = apriori(records, min_support=0.5, min_confidence=0.75)
+
+association_result = list(association_rule)
+
+association_result
+
+
+
+****--Kmeans****
+from google.colab import files
+import pandas as pd
+import warnings
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import MinMaxScaler
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, roc_auc_score, accuracy_score, classification_report
+warnings.filterwarnings('ignore')
+
+
+plt.scatter(income_df.Age, income_df.Income)
+
+plt.scatter(income_df.Age, income_df.Income)
+
+kmean = KMeans(n_clusters=3)
+kmean
+
+y_pred = kmean.fit_predict(income_df[['Age', 'Income']])
+y_pred
+
+income_df['Cluster'] = y_pred
+income_df
+
+//for visulization 
+df1 = income_df[income_df.Cluster == 0]
+df2 = income_df[income_df.Cluster == 1]
+df3 = income_df[income_df.Cluster == 2]
+
+df1
+
+df2
+
+df3
+
+income_df.describe()
+
+plt.scatter(df1.Age, df1.Income, color='red')
+plt.scatter(df2.Age, df2.Income, color='green')
+plt.scatter(df3.Age, df3.Income, color='blue')
+plt.xlabel('Age')
+plt.ylabel('Income')
+plt.title("Age Income Scatter Plot")
+
+//for properly scaled diagram
+scaler = MinMaxScaler()
+
+scaler.fit(income_df[['Income']])
+
+income_df['Income'] = scaler.transform(income_df[['Income']])
+
+scaler.fit(income_df[['Age']])
+
+income_df['Age'] = scaler.transform(income_df[['Age']])
+
+income_df
+
+km=KMeans(n_clusters=3)
+y_predict=km.fit_predict(income_df[['Age','Income']])
+y_predict
+income_df['Cluster']=y_predict
+income_df
+
+df1 = income_df[income_df.Cluster == 0]
+df2 = income_df[income_df.Cluster == 1]
+df3 = income_df[income_df.Cluster == 2]
+
+plt.scatter(df1.Age, df1.Income, color='red')
+plt.scatter(df2.Age, df2.Income, color='green')
+plt.scatter(df3.Age, df3.Income, color='blue')
+plt.scatter(km.cluster_centers_[:,0], km.cluster_centers_[:,1] , color = 'purple',marker="*")
+plt.xlabel('Age')
+plt.ylabel('Income')
+plt.title("Age Income Scatter Plot")
+
+kmean.cluster_centers_
+
+
+****--Elbow Method****
+## Elbow Method is used on the clustering to identify the number of clusters
+
+from google.colab import files
+import pandas as pd
+import warnings
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import MinMaxScaler
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, roc_auc_score, accuracy_score, classification_report
+warnings.filterwarnings('ignore')
+
+mall_cust_df.info()
+
+mall_cust_df
+
+mall_cust_df.shape
+
+mall_cust_df.describe()
+
+X = mall_cust_df[["Annual Income (k$)", "Spending Score (1-100)"]].values
+X
+
+kmean = KMeans(n_clusters=3)
+kmean
+
+y_pred = kmean.fit_predict(X)
+
+y_pred
+
+mall_cust_df['Cluster'] = y_pred
+
+mall_cust_df
+
+kmean.cluster_centers_
+
+sum_of_squared_distance = []
+
+for k in range(1, 10):
+  km = KMeans(n_clusters=k)
+  km = km.fit(X)
+  sum_of_squared_distance.append(km.inertia_)
+
+sum_of_squared_distance
+
+##Plot sum_of_squared_distance & determine optimal k using Elbow method
+plt.plot(range(1, 10), sum_of_squared_distance)
+plt.title("Elbow Method")
+plt.xlabel("No of Clusters")
+plt.xlabel("Sum of Squared Distances")
+
+
+
+***Supervises Learning***
+**Linear Regression **
+
+from google.colab import files
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn import linear_model
+import warnings
+warnings.filterwarnings('ignore')
+
+houseData.info()
+
+houseData.head()
+
+X = houseData.Area
+Y = houseData.Price
+
+plt.figure(dpi=150)
+plt.xlabel('Flat Area')
+plt.ylabel('Sales Price')
+plt.scatter(X, Y, marker='.', color='red')
+
+reg = linear_model.LinearRegression()
+
+reg.fit(houseData[['Area']], houseData.Price)
+
+reg.predict([[1900]])
+
+//slope
+reg.coef_
+
+//intercept
+reg.intercept_
+
+//Manually checking
+y = reg.coef_ * 1900 + reg.intercept_
+y
+
+*** to get MSE Error ***
+
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+print("Testing Errors")
+print("MAE: ", mean_absolute_error(y_test, y_pred))
+print("MSE: ", mean_squared_error(y_test, y_pred))
+print("R2 Square: ", r2_score(y_test, y_pred))
+
+
+**Multivariate Regression**
+
+houseData = pd.read_csv(filename)
+houseData.info()
+
+houseData.head()
+
+//preprocessing
+//if the value is NaN
+bedroomMean = houseData.Bedroom.mean()
+bedroomMean
+houseData.Bedroom = houseData.Bedroom.fillna(value=bedroomMean)
+houseData
+
+//regression
+reg = linear_model.LinearRegression()
+
+reg.fit(houseData[['Area', 'Bedroom', 'Age']], houseData.Price)
+
+//slope
+reg.coef_
+
+reg.predict([[1900]])
+
+//intecept
+reg.intercept_
+
+//predict for diff values
+reg.predict([[3000, 3, 50]])
+
+//manually checking
+y = reg.coef_[0] * 3000 + reg.coef_[1] * 3 + reg.coef_[2] * 50 + reg.intercept_
+y
+
+
+**Logistic Regression**
+from google.colab import files
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn import linear_model
+from sklearn.model_selection import train_test_split
+import warnings
+warnings.filterwarnings('ignore')
+
+logisticData.info()
+plt.scatter(logisticData.Age, logisticData.Purchased, marker='*', color='green')
+from sklearn.linear_model import LogisticRegression
+model = LogisticRegression()
+model.fit(logisticData[['Age']], logisticData.Purchased)
+model.predict([[27]])
+
+or
+
+X = sampleData[['Age']]
+Y = sampleData.Purchased
+x_train, x_test, y_train, y_test = train_test_split(X, Y, test_size=0.2)
+model.fit(x_train, y_train)
+y_pred = model.predict(x_test)
+y_pred
+print("Actual Price: ", y_test)
+print("Actual Price: ", y_pred)
+
+
+***Clustering***
+**Decision Tree**
+from google.colab import files
+import pandas as pd
+import warnings
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn import tree
+from sklearn.preprocessing import LabelEncoder
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, roc_auc_score, accuracy_score, classification_report
+warnings.filterwarnings('ignore')
+
+X = golf_df.drop(['Play'], axis=1)
+y = golf_df.Play
+
+one_hot_data = pd.get_dummies(X)
+one_hot_data = one_hot_data.astype(int)
+one_hot_data
+
+clf = DecisionTreeClassifier()
+clf
+
+plt.figure(figsize=(15, 10))
+plot_tree(clf_train, filled=True, rounded=True, fontsize=15, feature_names=one_hot_data.columns)
+plt.savefig('out_playgolf.pdf')
+
+prediction = clf_train.predict([[0, 0, 1, 0, 1, 0, 0, 1, 0]])
+prediction
+
+X_train, X_test, y_train, y_test = train_test_split(one_hot_data, y, test_size=0.3)
+
+clf = clf.fit(X_train, y_train)
+clf
+
+y_pred = clf.predict(X_test)
+
+accuracy_score(y_test, y_pred)
+
+cfm = confusion_matrix(y_test, y_pred)
+cfm
+
+//accuracy score
+accuracy_score(y_test, y_pred)
+
+//Precision score
+print(f"Computed: {precision_score(y_test, y_pred, average=None)}")
+
+//recall_score
+print(f"Computed: {recall_score(y_test, y_pred, average=None)}")
+
+
+//f1_score
+print(f"Computed: {f1_score(y_test, y_pred, average=None)}")
+
+//classification_report
+print(classification_report(y_test, y_pred, target_names = ['0', '1']))
+
+
+***KNN***
+from google.colab import files
+import pandas as pd
+import warnings
+from sklearn import tree
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import LabelEncoder
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, roc_auc_score, accuracy_score, classification_report
+warnings.filterwarnings('ignore')
+
+result_df.info()
+
+X = result_df.drop(['Result'], axis=1)
+y = result_df.Result
+
+knn = KNeighborsClassifier(n_neighbors=3)
+knn
+
+train_df = knn.fit(X, y)
+train_df
+
+prediction = train_df.predict([[6, 8]])
+
+prediction
+
+--if u got iris data
+X = iris_df.drop(['variety'], axis=1)
+y = iris_df.variety
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+knn = KNeighborsClassifier(n_neighbors=50)
+knn
+train_df = knn.fit(X_train, y_train)
+train_df
+y_pred = knn.predict(X_test)
+print(f"Accuracy: {accuracy_score(y_test, y_pred)}")
+print(f"Precision: {precision_score(y_test, y_pred, average='weighted')}")
+print(f"Recall: {recall_score(y_test, y_pred, average='weighted')}")
+print(f"F1 Score: {f1_score(y_test, y_pred, average='weighted')}")
+
+
+***Hyperparameter Tunning
+from sklearn.model_selection import GridSearchCV
+
+grid_params = {
+    'n_neighbors': [5, 7, 9, 11, 13, 15],
+    'metric': ['minkowski', 'euclidean', 'manhattan']
+}
+gs = GridSearchCV(knn, grid_params, verbose=2, cv=3)
+gs
+g_res
+g_res.best_score_
+g_res.best_params_
+
+**Naive Bayes**
+flu_df = pd.read_csv(filename)
+X = flu_df.drop(['Flue'], axis=1)
+y = flu_df.Flue
+le = LabelEncoder()
+flu_df['Chills'] = le.fit_transform(flu_df['Chills'])
+flu_df['RunnyNose'] = le.fit_transform(flu_df['RunnyNose'])
+flu_df['Headache'] = le.fit_transform(flu_df['Headache'])
+flu_df['Fever'] = le.fit_transform(flu_df['Fever'])
+
+# Alternate way to perform lable encoding on X
+# X = X.apply(le.fit_transform)
+
+X = flu_df.drop(['Flue'], axis=1)
+berNB = BernoulliNB()
+berNB
+train_df = berNB.fit(X, y)
+train_df
+prediction = train_df.predict([[1, 0, 1, 1]])
+prediction
+
+
+**SVM-classifier**
+from google.colab import files
+import pandas as pd
+import warnings
+from sklearn.svm import SVC
+from sklearn.preprocessing import LabelEncoder
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, roc_auc_score, accuracy_score, classification_report
+warnings.filterwarnings('ignore')
+
+social_df = pd.read_csv(filename)
+
+X = social_df.drop(['Purchased', 'User ID',	'Gender'], axis=1)
+y = social_df.Purchased
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+svModel = SVC(kernel='rbf')
+svModel.fit(X_train, y_train)
+y_pred = svModel.predict(X_test)
+y_pred
+accuracy_score(y_test, y_pred)
+
+//diff kernal
+//svModel2 = SVC(kernel='poly')
+//svm1 = svModel2.fit(X_train, y_train)
+//svm1
+
+//svModel3 = SVC(kernel='linear')
+//svm2 = svModel3.fit(X_train, y_train)
+//svm2
+
+
+***SVM***
+from google.colab import files
+import pandas as pd
+import warnings
+from sklearn.svm import SVC
+from sklearn.preprocessing import LabelEncoder
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, roc_auc_score, accuracy_score, classification_report
+warnings.filterwarnings('ignore')
+
+social_df = pd.read_csv(filename)
+X = social_df.drop(['Purchased', 'User ID',	'Gender'], axis=1)
+y = social_df.Purchased
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+svModel = SVC(kernel='rbf')
+svModel.fit(X_train, y_train)
+y_pred = svModel.predict(X_test)
+y_pred
+accuracy_score(y_test, y_pred)
+
+
+**Random Forest**
+--ada boost
+from google.colab import files
+import pandas as pd
+import warnings
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.preprocessing import LabelEncoder
+from sklearn.impute import SimpleImputer
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, roc_auc_score, accuracy_score, classification_report
+warnings.filterwarnings('ignore')
+
+titanic_df = pd.read_csv(filename2)
+
+titanic_df['Age'].fillna(titanic_df['Age'].median(), inplace=True)
+titanic_df['Embarked'].fillna(titanic_df['Embarked'].mode()[0], inplace=True)
+titanic_df['Fare'].fillna(titanic_df['Fare'].median(), inplace=True)
+titanic_df.drop('Cabin', axis=1, inplace=True)
+le = LabelEncoder()
+titanic_df['Sex'] = le.fit_transform(titanic_df['Sex'])
+titanic_df['Embarked'] = le.fit_transform(titanic_df['Embarked'])
+features = ['Pclass', 'Sex', 'Age', 'SibSp', 'Parch', 'Fare', 'Embarked']
+X = titanic_df[features]
+y = titanic_df['Survived']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+print(titanic_df.isnull().sum())
+
+--AdaBoost Classifer
+abc = AdaBoostClassifier(n_estimators=50, learning_rate=1, random_state=42)
+model = abc.fit(X_train, y_train)
+y_pred_abc = model.predict(X_test)
+
+print("AdaBoost Classifier:")
+print(confusion_matrix(y_test, y_pred_abc))
+print(classification_report(y_test, y_pred_abc))
+print("Accuracy:", accuracy_score(y_test, y_pred_abc))
+
+# Comparing Evaluation
+print("AdaBoost Classifier:")
+print(confusion_matrix(y_test, y_pred_abc))
+print(classification_report(y_test, y_pred_abc))
+print("Accuracy:", accuracy_score(y_test, y_pred_abc))
+
+print("\nDecision Tree Classifier:")
+print(confusion_matrix(y_test, y_pred_dtc))
+print(classification_report(y_test, y_pred_dtc))
+print("Accuracy:", accuracy_score(y_test, y_pred_dtc))
+
+
+--Bagging
+
+from google.colab import files
+import pandas as pd
+import warnings
+from sklearn.ensemble import BaggingClassifier
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.preprocessing import LabelEncoder
+from sklearn.impute import SimpleImputer
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, roc_auc_score, accuracy_score, classification_report
+warnings.filterwarnings('ignore')
+
+heart_df = pd.read_csv(filename)
+
+X = heart_df.drop(columns=["target"], axis=1)
+y = heart_df.target
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+bagging_model1 = BaggingClassifier(estimator= SVC(), n_estimators=100, oob_score=True, max_samples=0.8, random_state=42)
+bagging_model1
+bagging_model1.fit(X_train, y_train)
+bagging_model1.oob_score_
+
+//Hyperparameter Tunning
+bagging_model2 = BaggingClassifier(estimator= DecisionTreeClassifier(), n_estimators=100, oob_score=True, max_samples=0.8, random_state=42)
+bagging_model2.fit(X_train, y_train)
+bagging_model2.oob_score_
+
+
+//compare baggging and standalone
+model3 = DecisionTreeClassifier()
+model3.fit(X_train, y_train)
+y_pred1 = model3.predict(X_test)
+print(classification_report(y_test, y_pred1))
+model4 = SVC(kernel='rbf')
+model4.fit(X_train, y_train)
+y_pred2 = model4.predict(X_test)
+print(classification_report(y_test, y_pred2))
+
+
+//Cross validation
+score1 = cross_val_score(bagging_model1, X, y, cv=5)
+score1
+score1.mean()
+score2 = cross_val_score(bagging_model2, X, y, cv=5)
+score2.mean()
+score3 = cross_val_score(model3, X, y, cv=5)
+score3.mean()
+score4 = cross_val_score(model4, X, y, cv=5)
+score4.mean()
+
+mean_score1 = score1.mean()
+mean_score2 = score2.mean()
+mean_score3 = score3.mean()
+mean_score4 = score4.mean()
+
+data = {
+    "Model": ["Bagging Model 1 (SVC)", "Bagging Model 2 (Tree)", "Model 3 (Tree)", "Model 4 (SVC)"],
+    "Mean Score": [mean_score1, mean_score2, mean_score3, mean_score4]
+}
+
+comparison_df = pd.DataFrame(data
+comparison_df
+
+*****************************************************************************************************************************************************************
 https://docs.google.com/document/d/1jDz_eIpbCM_h2pbxMNF_PT6v9ZU8BU3ZDKyCyvoPZzk/edit?tab=t.0
 
 
