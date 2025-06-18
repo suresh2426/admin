@@ -1837,3 +1837,254 @@ home.jsp:
 <h2>${message}</h2>
 </body>
 </html>
+
+
+******************************************************************************************************************************************************************
+
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.sql.*;
+
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.*;
+
+@WebServlet("/RegisterServlet")
+public class RegisterServlet extends HttpServlet {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        String name = request.getParameter("name");
+        String email = request.getParameter("email");
+        String ageStr = request.getParameter("age");
+
+        int age = Integer.parseInt(ageStr);
+
+        // Database connection parameters
+        String jdbcURL = "jdbc:mysql://localhost:3306/studentdb";
+        String dbUser = "root"; // change if your username is different
+        String dbPassword = "yourpassword"; // change this to your MySQL password
+
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            Connection connection = DriverManager.getConnection(jdbcURL, dbUser, dbPassword);
+
+            String sql = "INSERT INTO students (name, email, age) VALUES (?, ?, ?)";
+            PreparedStatement statement = connection.prepareStatement(sql);
+
+            statement.setString(1, name);
+            statement.setString(2, email);
+            statement.setInt(3, age);
+
+            int rows = statement.executeUpdate();
+
+            PrintWriter out = response.getWriter();
+            response.setContentType("text/html");
+
+            if (rows > 0) {
+                out.println("<h3>Student Registered Successfully!</h3>");
+            } else {
+                out.println("<h3>Registration Failed!</h3>");
+            }
+
+            connection.close();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+<web-app>
+    <servlet>
+        <servlet-name>RegisterServlet</servlet-name>
+        <servlet-class>RegisterServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>RegisterServlet</servlet-name>
+        <url-pattern>/RegisterServlet</url-pattern>
+    </servlet-mapping>
+</web-app>
+
+
+Sess with jsp
+
+<html>
+<head><title>Hidden Field</title></head>
+<body>
+    <form action="hiddenWelcome.jsp" method="post">
+        Enter your name: <input type="text" name="username">
+        <input type="submit" value="Submit">
+    </form>
+</body>
+</html>
+
+
+<%@ page contentType="text/html;charset=UTF-8" %>
+<html>
+<head><title>Welcome</title></head>
+<body>
+    <h2>Welcome, <%= request.getParameter("username") %>!</h2>
+</body>
+</html>
+
+
+////////////////
+
+<html>
+<head><title>URL Rewriting</title></head>
+<body>
+    <form action="urlNext.jsp" method="get">
+        Enter your name: <input type="text" name="name" />
+        <input type="submit" value="Go">
+    </form>
+</body>
+</html>
+
+
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%
+    String name = request.getParameter("name");
+%>
+<a href="urlWelcome.jsp?username=<%= name %>">Go to Welcome Page</a>
+
+
+<%@ page contentType="text/html;charset=UTF-8" %>
+<h2>Hello, <%= request.getParameter("username") %> (via URL Rewriting)!</h2>
+
+
+/////////////////////////
+
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%
+    String name = request.getParameter("name");
+    if (name != null) {
+        Cookie c = new Cookie("username", name);
+        response.addCookie(c);
+%>
+        <h2>Cookie Set for: <%= name %></h2>
+        <a href="cookieWelcome.jsp">Go to Welcome Page</a>
+<%
+    } else {
+%>
+    <form action="cookieSet.jsp" method="post">
+        Enter your name: <input type="text" name="name" />
+        <input type="submit" value="Submit">
+    </form>
+<%
+    }
+%>
+
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%
+    Cookie[] cookies = request.getCookies();
+    String name = "Guest";
+    if (cookies != null) {
+        for (Cookie c : cookies) {
+            if (c.getName().equals("username")) {
+                name = c.getValue();
+                break;
+            }
+        }
+    }
+%>
+<h2>Welcome, <%= name %> (via Cookie)!</h2>
+
+////////////////////
+
+
+<html>
+<head><title>Session Tracking using HTtp</title></head>
+<body>
+    <form action="sessionWelcome.jsp" method="post">
+        Enter your name: <input type="text" name="name" />
+        <input type="submit" value="Submit">
+    </form>
+</body>
+</html>
+
+
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%
+    String name = request.getParameter("name");
+    session.setAttribute("username", name);
+%>
+<h2>Welcome, <%= session.getAttribute("username") %> (via HttpSession)!</h2>
+<a href="sessionSecond.jsp">Go to Next Page</a>
+
+
+
+<%@ page contentType="text/html;charset=UTF-8" %>
+<h2>Again Hello, <%= session.getAttribute("username") %> (Session still active)</h2>
+
+
+
+///////////////////////////////////////
+
+import java.io.*;
+import javax.servlet.*;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.*;
+
+@WebServlet("/SessionTrackingDemo")
+public class SessionTrackingDemo extends HttpServlet {
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+        throws ServletException, IOException {
+
+        response.setContentType("text/html");
+        PrintWriter out = response.getWriter();
+
+        String name = request.getParameter("name");
+
+        if (name != null) {
+            // 1. Cookie
+            Cookie c = new Cookie("username", name);
+            response.addCookie(c);
+
+            // 2. HttpSession
+            HttpSession session = request.getSession();
+            session.setAttribute("username", name);
+
+            out.println("<h2>Welcome " + name + "</h2>");
+
+            // Provide links to demonstrate URL rewriting & hidden field
+            out.println("<br><a href='SessionTrackingDemo2?name=" + name + "'>Go to Second Servlet (URL Rewriting)</a>");
+
+            out.println("<form action='SessionTrackingDemo2' method='post'>");
+            out.println("<input type='hidden' name='name' value='" + name + "'>");
+            out.println("<br><br><input type='submit' value='Go to Second Servlet (Hidden Field)'>");
+            out.println("</form>");
+
+        } else {
+            // First-time form input
+            out.println("<h2>Enter Your Name</h2>");
+            out.println("<form action='SessionTrackingDemo' method='get'>");
+            out.println("Name: <input type='text' name='name'><br><br>");
+            out.println("<input type='submit' value='Submit'>");
+            out.println("</form>");
+        }
+    }
+}
+
+
+//////////////
+
+<%@ page language="java" contentType="text/html; charset=UTF-8" %>
+<jsp:useBean id="user" class="beans.UserBean" scope="request" />
+<jsp:setProperty name="user" property="name" param="name" />
+
+<html>
+<head>
+    <title>Welcome Page</title>
+</head>
+<body>
+    <h2>Welcome, <jsp:getProperty name="user" property="name" />!</h2>
+</body>
+</html>
+
+
+
+
+
+
+
