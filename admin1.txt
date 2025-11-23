@@ -1,0 +1,494 @@
+------------Word Count-----------------
+import java.io.IOException;
+import org.apache.hadoop.fs.Path;          // fs stands for File System
+import org.apache.hadoop.io.IntWritable;       // for int values
+import org.apache.hadoop.io.Text;             // for String values
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;       //for mapreduce, input from text files
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;    //for mapreduce, output in text files
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.io.LongWritable;
+
+public class WordCount {
+    // There are 4 values
+    // 1st is input key: long, 2nd is input value: string, 3rd is output key: String, 4th is output value : int
+    public static class WordMapper extends Mapper <LongWritable, Text, Text, IntWritable>{
+        // map method will take 3 input parameter: key, value and context obj
+        // context obj is used for status, interprocess communication
+        // will run once for each key
+        @Override
+        public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException{
+            String line = value.toString();
+            // key
+            for (String word: line.split("\\W+")){
+                if(word.length() > 0){
+                    // value
+                    context.write(new Text(word), new IntWritable(1));
+                }
+            }
+        }
+    }
+
+    // This will give final output
+    //  1st is input key: long, 2nd is input value: string, 3rd is output key: String, 4th is output value : int
+    public static class SumReducer extends Reducer<Text, IntWritable, Text, IntWritable>{
+        @Override
+        public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException{
+            int wordCount = 0;
+            for(IntWritable value: values){
+                wordCount += value.get();
+            }
+            context.write(key, new IntWritable(wordCount));
+        }
+    }
+
+    public static void main(String[] args) throws Exception{
+        if(args.length != 2){
+            System.out.printf("Usage: WordCount <input dir><output dir>\n");
+            System.exit(-1);
+        }
+
+        Job job = Job.getInstance();
+        job.setJarByClass(WordCount.class);
+        job.setJobName("Word Count");
+
+        FileInputFormat.setInputPaths(job, new Path(args[0]));
+        FileOutputFormat.setOutputPath(job, new Path(args[1]));
+
+        job.setMapperClass(WordMapper.class);
+        job.setReducerClass(SumReducer.class);
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(IntWritable.class);
+        boolean success = job.waitForCompletion(true);
+        System.exit(success ? 0 : 1);
+    }
+}
+
+
+------------Word Count Average---------------
+import java.io.*;
+import org.apache.hadoop.fs.Path;          // fs stands for File System
+import org.apache.hadoop.io.DoubleWritable;
+// import org.apache.hadoop.io.IntWritable;       // for int values
+import org.apache.hadoop.io.Text;             // for String values
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;       //for mapreduce, input from text files
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;    //for mapreduce, output in text files
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.io.LongWritable;
+
+public class WordAverage{
+    public static class WordMapper extends Mapper <LongWritable, Text, Text, LongWritable>{
+        // map method will take 3 input parameter: key, value and context obj
+        // context obj is used for status, interprocess communication
+        // will run once for each key
+        @Override
+        public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException{
+            String line = value.toString();
+            // key
+            for (String word: line.split("\\W+")){
+                if(word.length() > 0){
+                    // value
+                    context.write(new Text(String.valueOf(word.charAt(0))), new LongWritable(word.length()));
+                }
+            }
+        }
+    }
+   
+    public static class SumReducer extends Reducer<Text, LongWritable, Text, DoubleWritable>{
+        // Can use FloatWritable as well, it will save space
+        @Override
+        public void reduce(Text key, Iterable<LongWritable> values, Context context) throws IOException, InterruptedException{
+           
+            double letterCount = 0;
+            double wordSum = 0;
+            for(LongWritable value: values){
+                wordSum += value.get();
+                letterCount++;
+            }
+            double wordAverage = wordSum / letterCount;
+            context.write(key, new DoubleWritable(wordAverage));
+        }
+    }
+
+    public static void main(String[] args) throws Exception{
+        if(args.length != 2){
+            System.out.printf("Usage: WordAverage <input dir><output dir>\n");
+            System.exit(-1);
+        }
+
+        Job job = Job.getInstance();
+        job.setJarByClass(WordAverage.class);
+        job.setJobName("Word Average");
+
+        FileInputFormat.setInputPaths(job, new Path(args[0]));
+        FileOutputFormat.setOutputPath(job, new Path(args[1]));
+
+        job.setMapperClass(WordMapper.class);
+        job.setReducerClass(SumReducer.class);
+
+        job.setMapOutputKeyClass(Text.class);
+        job.setMapOutputValueClass(LongWritable.class);
+
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(DoubleWritable.class);
+
+        boolean success = job.waitForCompletion(true);
+        System.exit(success ? 0 : 1);
+    }
+}
+
+
+-----------Count of subpatents --------------
+import java.io.IOException;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.FloatWritable;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+public class CalculateSubPatent {
+    public static class SubPatentMapper extends Mapper<LongWritable, Text, FloatWritable, IntWritable> {
+        @Override
+        public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+            String line = value.toString().trim();
+            if (line.isEmpty()) return;
+            String[] parts = line.split("\\s+");
+            if (parts.length == 2) {
+                try {
+                    float floatValue = Float.parseFloat(parts[1]);
+                    context.write(new FloatWritable(floatValue), new IntWritable(1));
+                } catch (NumberFormatException e) {
+                    // Skip malformed numeric values
+                }
+            }
+        }
+    }
+
+    public static class SubPatentReducer extends Reducer<FloatWritable, IntWritable, FloatWritable, IntWritable> {
+        @Override
+        public void reduce(FloatWritable key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
+            int count = 0;
+            for (IntWritable v : values) {
+                count += v.get();
+            }
+            context.write(key, new IntWritable(count));
+        }
+    }
+
+    public static void main(String[] args) throws Exception {
+        if (args.length != 2) {
+            System.err.println("Usage: CalculateSubPatent <input> <output>");
+            System.exit(-1);
+        }
+
+        Configuration conf = new Configuration();
+        Job job = Job.getInstance(conf, "Calculate Sub Patents");
+
+        job.setJarByClass(CalculateSubPatent.class);
+
+        FileInputFormat.setInputPaths(job, new Path(args[0]));
+        FileOutputFormat.setOutputPath(job, new Path(args[1]));
+
+        job.setMapperClass(SubPatentMapper.class);
+        job.setReducerClass(SubPatentReducer.class);
+
+        job.setMapOutputKeyClass(FloatWritable.class);
+        job.setMapOutputValueClass(IntWritable.class);
+
+        job.setOutputKeyClass(FloatWritable.class);
+        job.setOutputValueClass(IntWritable.class);
+
+        boolean success = job.waitForCompletion(true);
+        System.exit(success ? 0 : 1);
+    }
+}
+
+
+---------------Count of subpatents assigned to patents (Even Roll)------------------
+import java.io.IOException;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+public class CalculatePatents {
+    public static class PatentMapper extends Mapper<LongWritable, Text, IntWritable, IntWritable> {
+        private final static IntWritable one = new IntWritable(1);
+        private IntWritable outKey = new IntWritable();
+        @Override
+        protected void map(LongWritable key, Text value, Context context)
+                throws IOException, InterruptedException {
+            String line = value.toString().trim();
+            if (line.isEmpty()) {
+                return;
+            }
+            // split on whitespace (one or more)
+            String[] parts = line.split("\\s+");
+            // your original code checked for parts.length == 2
+            if (parts.length == 2) {
+                try {
+                    int keyValue = Integer.parseInt(parts[0]);
+                    outKey.set(keyValue);
+                    context.write(outKey, one);
+                } catch (NumberFormatException e) {
+                    // ignore malformed key values (or optionally log)
+                }
+            }
+        }
+    }
+
+    public static class PatentReducer extends Reducer<IntWritable, IntWritable, IntWritable, IntWritable> {
+        private IntWritable result = new IntWritable();
+        @Override
+        protected void reduce(IntWritable key, Iterable<IntWritable> values, Context context)
+                throws IOException, InterruptedException {
+            int sum = 0;
+            for (IntWritable v : values) {
+                sum += v.get();
+            }
+            result.set(sum);
+            context.write(key, result);
+        }
+    }
+
+    public static void main(String[] args) throws Exception {
+        if (args.length != 2) {
+            System.err.println("Usage: CalculatePatents <input path> <output path>");
+            System.exit(-1);
+        }
+
+        Configuration conf = new Configuration();
+        Job job = Job.getInstance(conf, "Calculate Patents");
+        job.setJarByClass(CalculatePatents.class);
+
+        FileInputFormat.setInputPaths(job, new Path(args[0]));
+        FileOutputFormat.setOutputPath(job, new Path(args[1]));
+
+        job.setMapperClass(PatentMapper.class);
+        job.setReducerClass(PatentReducer.class);
+
+        // Map output types
+        job.setMapOutputKeyClass(IntWritable.class);
+        job.setMapOutputValueClass(IntWritable.class);
+
+        // Final output types
+        job.setOutputKeyClass(IntWritable.class);
+        job.setOutputValueClass(IntWritable.class);
+
+        boolean success = job.waitForCompletion(true);
+        System.exit(success ? 0 : 1);
+    }
+}
+
+
+
+----------cypher encrypted text------------
+import java.io.IOException;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+public class MapperOnly {
+    public static class MapperClass extends Mapper<LongWritable, Text, Text, Text> {
+        @Override
+        public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+            String input = value.toString().replaceAll("\\|\\|", ",");
+            context.write(new Text(input), new Text(""));
+        }
+    }
+
+    public static void main(String[] args) throws Exception {
+        Job job = Job.getInstance();
+        job.setJarByClass(MapperOnly.class);
+        job.setJobName("onlyMapper");
+        FileInputFormat.setInputPaths(job, new Path(args[0]));
+        FileOutputFormat.setOutputPath(job, new Path(args[1]));
+        job.setMapperClass(MapperClass.class);
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(Text.class);
+        job.setNumReduceTasks(0);
+
+        if (job.waitForCompletion(true)) {
+            System.exit(0);
+        } else {
+            System.exit(1);
+        }
+    }
+}
+
+
+------------Combiner code Word Count---------
+import java.io.IOException;
+import org.apache.hadoop.fs.Path;          // fs stands for File System
+import org.apache.hadoop.io.IntWritable;       // for int values
+import org.apache.hadoop.io.Text;             // for String values
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;       //for mapreduce, input from text files
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;    //for mapreduce, output in text files
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.io.LongWritable;
+
+public class WordCount {
+    // There are 4 values
+    // 1st is input key: long, 2nd is input value: string, 3rd is output key: String, 4th is output value : int
+    public static class WordMapper extends Mapper <LongWritable, Text, Text, IntWritable>{
+        // map method will take 3 input parameter: key, value and context obj
+        // context obj is used for status, interprocess communication
+        // will run once for each key
+        @Override
+        public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException{
+            String line = value.toString();
+            // key
+            for (String word: line.split("\\W+")){
+                if(word.length() > 0){
+                    // value
+                    context.write(new Text(word), new IntWritable(1));
+                }
+            }
+        }
+    }
+
+    // This will give final output
+    //  1st is input key: long, 2nd is input value: string, 3rd is output key: String, 4th is output value : int
+    public static class SumReducer extends Reducer<Text, IntWritable, Text, IntWritable>{
+        @Override
+        public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException{
+            int wordCount = 0;
+            for(IntWritable value: values){
+                wordCount += value.get();
+            }
+            context.write(key, new IntWritable(wordCount));
+        }
+    }
+
+    public static void main(String[] args) throws Exception{
+        if(args.length != 2){
+            System.out.printf("Usage: WordCount <input dir><output dir>\n");
+            System.exit(-1);
+        }
+
+        Job job = Job.getInstance();
+        job.setJarByClass(WordCount.class);
+        job.setJobName("Word Count");
+
+        FileInputFormat.setInputPaths(job, new Path(args[0]));
+        FileOutputFormat.setOutputPath(job, new Path(args[1]));
+
+        job.setMapperClass(WordMapper.class);
+        // adding combiner
+        job.setCombinerClass(SumReducer.class);
+        job.setReducerClass(SumReducer.class);
+
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(IntWritable.class);
+
+        boolean success = job.waitForCompletion(true);
+        System.exit(success ? 0 : 1);
+    }
+}
+
+
+------------------MapReduce Partitioner code on salaryData(1201  gopal  45  Male  50000)----------
+import java.io.*;
+import org.apache.hadoop.io.*;
+import org.apache.hadoop.mapreduce.*;
+import org.apache.hadoop.conf.*;
+import org.apache.hadoop.fs.*;
+import org.apache.hadoop.mapreduce.lib.input.*;
+import org.apache.hadoop.mapreduce.lib.output.*;
+import org.apache.hadoop.util.*;
+
+public class MapReducePartitioner extends Configured implements Tool{
+    // Map class
+    public static class MapClass extends Mapper <LongWritable, Text, Text, Text>{
+        public void map(LongWritable key, Text value, Context context){
+            try{
+                String [] str = value.toString().split("\t",-3);
+                String gender = str[3];
+                context.write(new Text(gender), new Text(value));
+            }catch(Exception e){
+                System.out.println(e.getMessage());
+            }
+        }
+    }  
+
+    // Reducer class
+    public static class ReduceClass extends Reducer<Text, Text, Text, IntWritable>{
+        public int max = -1;
+        public void reduce (Text key, Iterable <Text> values, Context context) throws IOException, InterruptedException{
+        max = -1;
+        for(Text val:values){
+            String [] str = val.toString().split("\t",-3);
+            if(Integer.parseInt(str[4])>max)
+            max = Integer.parseInt(str[4]);
+        }
+        context.write(new Text(key), new IntWritable(max));
+    }
+    }
+
+     // Partitioner class
+     public static class CaderPartitioner extends Partitioner <Text,Text>{
+       public int getPartition (Text key, Text value, int numReduceTasks){
+            String [] str = value.toString().split("\t");
+            int age = Integer.parseInt(str[2]);
+            if(numReduceTasks == 0){
+                return 0;
+            }
+            if(age <=20){
+                return 0;
+            }else if(age >20 && age<=30) {
+                return 1 % numReduceTasks;
+            }else{
+                return 2 % numReduceTasks;
+            }
+        }
+    }
+
+    public int run(String args[]) throws Exception{
+        Configuration conf = getConf();
+        Job job = new Job(conf,"topSal");
+        job.setJarByClass(MapReducePartitioner.class);
+        FileInputFormat.setInputPaths(job, new Path(args[0]));
+        FileOutputFormat.setOutputPath(job, new Path(args[1]));      
+       
+        job.setMapperClass(MapClass.class);
+        job.setMapOutputKeyClass(Text.class);
+        job.setMapOutputValueClass(Text.class);
+
+        //set partitoner statement
+        job.setPartitionerClass(CaderPartitioner.class);
+        job.setReducerClass(ReduceClass.class);
+        job.setNumReduceTasks(3);
+        job.setInputFormatClass(TextInputFormat.class);
+        job.setOutputFormatClass(TextOutputFormat.class);
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(IntWritable.class);
+        System.exit(job.waitForCompletion(true) ? 0 : 1);
+        return 0;
+    }
+
+    public static void main(String[] args) throws Exception{
+        int res = ToolRunner.run(new Configuration(), new MapReducePartitioner(), args);
+        System.exit(0);
+    }
+}
