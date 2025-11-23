@@ -1,3 +1,10 @@
+hdfs dfs -mkdir
+hdfs dfs -ls
+hdfs dfs -rm -r
+hdfs dfs -put /path/of/local/file /path/of/hadoop/file/system/
+hadoop jar /path/of/jar classname /path/of/input/file /path/of/output/folder
+
+
 ------------Word Count-----------------
 import java.io.IOException;
 import org.apache.hadoop.fs.Path;          // fs stands for File System
