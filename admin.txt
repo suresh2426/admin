@@ -1,232 +1,97 @@
-# -------------------------
-# Apriori 
-# -------------------------
-!pip install apyori
-from google.colab import files
-import pandas as pd
-from apyori import apriori
-import warnings
-warnings.filterwarnings('ignore')
-
-df = pd.read_csv(filename)
-df.info()
-df.head()
-
-transactions = []
-for i in range(len(df)):
-    items = df.iloc[i, 1:].dropna().tolist()
-    transactions.append(items)
-
-transactions
-
-rules = apriori(transactions, min_support=0.008, min_confidence=0.3, min_lift=3, min_length=2)
-results = list(rules)
-print(len(results))
-
-
-# --------------------------
-# Clustering
-# --------------------------
-from google.colab import files
-import pandas as pd
-import warnings
-from sklearn.cluster import KMeans, DBSCAN, AgglomerativeClustering
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from sklearn.decomposition import PCA
-import scipy.cluster.hierarchy as sch
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, roc_auc_score, accuracy_score, classification_report
-
-warnings.filterwarnings('ignore')
-
-mall_df = pd.read_csv(filename)
-mall_df.info()
-mall_df.head()
-
-sns.histplot(mall_df['Annual Income (k$)'], kde=True)
-plt.title('Annual Income Distribution')
-plt.show()
-
-sns.histplot(mall_df['Spending Score (1-100)'], kde=True)
-plt.title('Spending Score Distribution')
-plt.show()
-
-sns.countplot(data=mall_df, x='Gender')
-plt.title('Gender Distribution')
-plt.show()
-
-X = mall_df[['Age', 'Annual Income (k$)', 'Spending Score (1-100)']]
-scaler = StandardScaler()
-scaled_data = scaler.fit_transform(X)
-
-kmeans = KMeans(n_clusters=5, random_state=42)
-mall_df['KMeans_Cluster'] = kmeans.fit_predict(scaled_data)
-
-pca = PCA(n_components=2)
-pca_data = pca.fit_transform(scaled_data)
-mall_df['PCA1'], mall_df['PCA2'] = pca_data[:, 0], pca_data[:, 1]
-
-plt.figure(figsize=(10, 6))
-sns.scatterplot(data=mall_df, x='PCA1', y='PCA2', hue='KMeans_Cluster', palette='tab10', s=80)
-plt.title('K-Means Clustering (PCA View)')
-plt.grid(True)
-plt.show()
-
-dbscan = DBSCAN(eps=0.6, min_samples=3)
-mall_df['DBSCAN_Cluster'] = dbscan.fit_predict(scaled_data)
-
-plt.figure(figsize=(10, 6))
-sns.scatterplot(data=mall_df, x='PCA1', y='PCA2', hue='DBSCAN_Cluster', palette='Set2', s=80)
-plt.title('DBSCAN Clustering (PCA View)')
-plt.grid(True)
-plt.show()
-
-plt.figure(figsize=(30, 16))
-dendrogram = sch.dendrogram(sch.linkage(scaled_data, method='ward'))
-plt.title('Dendrogram (Ward Linkage)')
-plt.show()
-
-hc = AgglomerativeClustering(n_clusters=5)
-mall_df['HC_Cluster'] = hc.fit_predict(scaled_data)
-
-plt.figure(figsize=(10, 6))
-sns.scatterplot(data=mall_df, x='PCA1', y='PCA2', hue='HC_Cluster', palette='Dark2', s=80)
-plt.title('Hierarchical Clustering (PCA View)')
-plt.grid(True)
-plt.show()
-
-print(mall_df.groupby('KMeans_Cluster')[['Age', 'Annual Income (k$)', 'Spending Score (1-100)']].mean())
-print(mall_df.groupby('DBSCAN_Cluster')[['Age', 'Annual Income (k$)', 'Spending Score (1-100)']].mean())
-print(mall_df.groupby('HC_Cluster')[['Age', 'Annual Income (k$)', 'Spending Score (1-100)']].mean())
-
-
-# ---------------------
-# Time Series Analysis
-# ---------------------
-!pip install prophet statsmodels matplotlib pandas pmdarima
-from google.colab import files
-import yfinance as yf
-from statsmodels.tsa.seasonal import seasonal_decompose
-from statsmodels.tsa.arima.model import ARIMA
-from statsmodels.tsa.holtwinters import ExponentialSmoothing
-from sklearn.metrics import mean_squared_error
-from sklearn.preprocessing import StandardScaler
-from prophet import Prophet
-import pandas as pd
-import matplotlib.pyplot as plt
-import warnings
-
-warnings.filterwarnings('ignore')
-
-df = yf.download('AAPL', start='2015-01-01', end='2023-12-31', progress=False)
-df.info()
-df.describe()
-print("No. of rows: ", df.shape[0])
-print("No. of cols: ", df.shape[1])
-
-df['Close'].plot(figsize=(10, 6), title="AAPL Stock Closing Price", grid=True)
-plt.show()
-
-decomposition = seasonal_decompose(df['Close'], model='multiplicative', period=252)
-plt.figure(figsize=(12, 8))
-decomposition.plot()
-plt.show()
-
-# Time series forecasting
-df.index = pd.to_datetime(df.index)
-train = df['Close'][:-60]
-test = df['Close'][-60:]
-
-# Standardize the train and test data
-scaler = StandardScaler()
-train_scaled = scaler.fit_transform(train.values.reshape(-1, 1)).flatten()
-test_scaled = scaler.transform(test.values.reshape(-1, 1)).flatten()
-
-# Fit ARIMA model on scaled train data
-arima_model_scaled = ARIMA(train_scaled, order=(1, 1, 1))
-arima_model_fit_scaled = arima_model_scaled.fit()
-
-# Make prediction for the next 60 days on scaled data
-start_index = len(train_scaled)
-end_index = start_index + len(test_scaled) - 1
-arima_forecast_scaled = arima_model_fit_scaled.predict(start=start_index, end=end_index, typ='levels')
-arima_forecast_rescaled = scaler.inverse_transform(arima_forecast_scaled.reshape(-1, 1)).flatten()
-arima_forecast_rescaled = pd.Series(arima_forecast_rescaled, index=test.index)
-
-print(f"Test NaN count: {test.isna().sum()}")
-print(f"ARIMA Forecast NaN count: {pd.Series(arima_forecast_rescaled).isna().sum()}")
-
-if not (pd.Series(arima_forecast_rescaled).isna().values.any()) and not (test.isna().values.any()):
-    arima_mse = mean_squared_error(test, arima_forecast_rescaled)
-    print(f"ARIMA Mean Squared Error: {arima_mse}")
-else:
-    print("ARIMA: Forecast or test contains NaN values. Unable to calculate MSE")
-
-plt.figure(figsize=(10, 6))
-plt.plot(train, label='Train')
-plt.plot(test, label='Test')
-plt.plot(arima_forecast_rescaled, label='ARIMA Forecast (Rescaled)', color='red')
-plt.title('ARIMA Model Forecast vs Actual (Rescaled)')
-plt.legend()
-plt.show()
-
-# Fit ETS model on scaled training data
-ets_model_scaled = ExponentialSmoothing(train_scaled, trend='additive', seasonal=None)
-ets_model_fit_scaled = ets_model_scaled.fit()
-ets_forecast_scaled = ets_model_fit_scaled.forecast(60)
-ets_forecast_rescaled = scaler.inverse_transform(ets_forecast_scaled.reshape(-1, 1)).flatten()
-ets_forecast_rescaled = pd.Series(ets_forecast_rescaled, index=test.index)
-
-print(f"Test NaN count: {test.isna().sum()}")
-print(f"ETS Forecast NaN count: {pd.Series(ets_forecast_rescaled).isna().sum()}")
-
-# Calculate ETS MSE if valid data points exist
-if not (pd.Series(ets_forecast_rescaled).isna().values.any()) and not (test.isna().values.any()):
-    ets_mse = mean_squared_error(test, ets_forecast_rescaled)
-    print(f"ETS Mean Squared Error: {ets_mse}")
-else:
-    print("ETS: Forecast or test contains NaN values. Unable to calculate MSE")
-
-# Plot the ETS Forecast vs Actual
-plt.figure(figsize=(10, 6))
-plt.plot(train, label='Train')
-plt.plot(test, label='Test')
-plt.plot(ets_forecast_rescaled, label='ETS Forecast (Rescaled)', color='green')
-plt.title('ETS Model Forecast vs Actual (Rescaled)')
-plt.grid(True)
-plt.legend()
-plt.show()
-
-# Model 3: Prophet
-prophet_df = df[['Close']][:-60].reset_index()
-prophet_df.columns = ['ds', 'y']
-prophet_model = Prophet()
-prophet_model.fit(prophet_df)
-
-future = prophet_model.make_future_dataframe(periods=60)
-prophet_forecast = prophet_model.predict(future)
-
-prophet_model.plot(prophet_forecast)
-plt.title('Prophet Model Forecast')
-plt.show()
-
-# Extract forecast values for the test period
-# Ensure proper datetime alignment
-prophet_test_forecast = prophet_forecast.set_index('ds')['yhat'][-60:]
-prophet_test_forecast.index.freq = None
-
-# Plot Prophet forecast vs actual
-plt.figure(figsize=(10, 6))
-plt.plot(train, label='Train')
-plt.plot(test, label='Test')
-plt.plot(prophet_test_forecast, label='Prophet Forecast (Rescaled)', color='orange')
-plt.title('Prophet Model Forecast vs Actual (Rescaled)')
-plt.grid(True)
-plt.legend()
-plt.show()
-
-# Prophet MSE Calculation
-prophet_mse = mean_squared_error(test, prophet_test_forecast)
-print(f"Prophet Mean Squared Error: {prophet_mse}")
+-------------HIVE-----------------
+create database assg;
+use assg;
+create table flags(name string,landmass int,zone int,area int,population int,language int,religion
+int,bars int,stripes int,colours int,red int,green int,blue int,gold int,white int,black int,orange
+int,mainhue string,circles int,crosses int,saltires int,quarters int,sunstars int,crescent int,triangle
+int,icon int,animate int,text int,topleft string,botright string) row format delimited fields terminated
+by ',' stored as textfile;
+----add dataset to hdfs----
+hdfs dfs -copyFromLocal '/home/training/Desktop/Country Project Dataset.txt' '/user/hive/flag';
+----then add the loaded dataset from hdfs to the table schema created above ----
+LOAD DATA INPATH '/user/hive/flag' INTO TABLE flags;
+---some queries----
+***Count the number of countries based on land mass***
+SELECT landmass, COUNT(*) FROM flags GROUP BY landmass;
+***Find out top 5 country with Sum of bars and strips in a flag***
+SELECT name, (bars + stripes) AS total FROM flags ORDER BY total DESC LIMIT 5;
+***Count of countries with icon.***
+SELECT COUNT(*)FROM flags  WHERE icon = 1;
+*** Count of countries which have same top left and top right color in flag***
+SELECT COUNT(*) FROM flags WHERE topleft = botright;
+***Count the number of countries based on zone***
+SELECT zone, COUNT(*) FROM flags GROUP BY zone;
+***Find out the largest country in terms of area in the NE zone***
+SELECT name, area FROM flags WHERE zone = 1 ORDER BY area DESC LIMIT 1;
+***Find out least populated country in S.America landmass***
+SELECT name, population FROM flags WHERE landmass = 2 ORDER BY population ASC LIMIT 1;
+***Find out the largest speaking language among all countries***
+SELECT language, COUNT(*) AS countrycount FROM flags GROUP BY language ORDER BY countrycount DESC LIMIT 1;
+***Find most common colour among flags from all countries***
+SELECT color, count FROM ( SELECT 'red' AS color, SUM(red) AS count FROM flags UNION ALL SELECT 'green' AS color, SUM(green) AS count FROM flags UNION ALL SELECT 'blue' AS color, SUM(blue) AS count FROM flags
+UNION ALL SELECT 'gold' AS color, SUM(gold) AS count FROM flags UNION ALL SELECT 'white' AS color, SUM(white) AS count FROM flags UNION ALL SELECT 'black' AS color, SUM(black) AS count FROM flags UNION ALL SELECT 'orange' AS color, SUM(orange) AS count FROM flags) color_counts ORDER BY count DESC LIMIT 1;
+***Sum of all circles present in all country flags***
+SELECT SUM(circles) FROM flags;
+***Count of countries which have both icon and text in flag***
+SELECT COUNT(*) FROM flags WHERE icon = 1 AND text = 1;
+-------------PIG----------------- 
+data= load '/user/training/input/CountryProjectDataset.txt' USING PigStorage(',') AS
+(name:chararray ,landmass:int ,zone:int ,area:int ,population:int ,language:int ,religion:int ,bars:int
+,stripes:int ,colours:int ,red:int ,green:int ,blue:int ,gold:int ,white:int ,black:int ,orange:int
+,mainhue:chararray ,circles:int ,crosses:int ,saltires:int ,quarters:int ,sunstars:int ,crescent:int
+,triangle:int ,icon:int ,animate:int ,text:int ,topleft:chararray ,botright:chararray);
+---some queries---
+***Count the number of countries based on landmass***
+grouped = GROUP data BY landmass;
+result = FOREACH grouped GENERATE group AS landmass, COUNT(data) AS country_count;
+dump result;
+***Find out top 5 country with Sum of bars and strips in a flag***
+addsum = FOREACH data GENERATE name, (bars + stripes) AS total;
+ordered = ORDER addsum BY total DESC;
+top5 = LIMIT ordered 5;
+DUMP top5;
+***Count of countries with icon***
+with_icon = FILTER data BY icon == 1;
+count_icon = FOREACH (GROUP with_icon ALL) GENERATE COUNT(with_icon);
+DUMP count_icon;
+***Count of countries which have same top left and top right color in flag***
+same_color = FILTER data BY topleft == botright;
+result = FOREACH (GROUP same_color ALL) GENERATE COUNT(same_color);
+DUMP result;
+***Count number of countries based on zone.***
+grouped = GROUP data BY zone;
+result = FOREACH grouped GENERATE group AS zone, COUNT(data) AS country_count;
+DUMP result;
+***Find out largest county in terms of area in NE zone***
+ne_zone = FILTER data BY zone == 1;
+max_country = ORDER ne_zone BY area DESC;
+largest = LIMIT max_country 1;
+DUMP largest;
+***Find out least populated country in S.America landmass***
+south_america = FILTER data BY landmass == 2;
+ordered = ORDER south_america BY population ASC;
+least = LIMIT ordered 1;
+DUMP least;
+***Find out largest speaking language among all countries***
+grouped = GROUP data BY language;
+counted = FOREACH grouped GENERATE group AS language, COUNT(data) AS country_count;
+ordered = ORDER counted BY country_count DESC;
+top1 = LIMIT ordered 1;
+DUMP top1;
+***Find most common colour among flags from all countries***
+colors = FOREACH data GENERATE(red == 1 ? 'red' : null) AS color1,(green == 1 ? 'green' : null) AS color2,(blue == 1 ? 'blue' : null) AS color3,(gold == 1 ? 'gold' : null) AS color4,(white == 1 ? 'white' : null) AS color5,(black == 1 ? 'black' : null) AS color6,(orange == 1 ? 'orange' : null) AS color7;
+flat = FOREACH colors GENERATE FLATTEN((TOTUPLE(color1,color2,color3,color4,color5,color6,color7)));
+filtered = FILTER flat BY $0 IS NOT NULL;
+grouped = GROUP filtered BY $0;
+result = FOREACH grouped GENERATE group AS color, COUNT(filtered) AS count;
+ordered = ORDER result BY count DESC;
+top1 = LIMIT ordered 1;
+DUMP top1;
+***Sum of all circles present in all country flags***
+grouped = GROUP data ALL;
+result = FOREACH grouped GENERATE SUM(data.circles);
+DUMP result;
+***Count of countries which have both icon and text in flag***
+both = FILTER data BY icon == 1 AND text == 1;
+result = FOREACH (GROUP both ALL) GENERATE COUNT(both);
+DUMP result;
