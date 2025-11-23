@@ -34,6 +34,48 @@ UNION ALL SELECT 'gold' AS color, SUM(gold) AS count FROM flags UNION ALL SELECT
 SELECT SUM(circles) FROM flags;
 ***Count of countries which have both icon and text in flag***
 SELECT COUNT(*) FROM flags WHERE icon = 1 AND text = 1;
+-- 1) create table (each line is one record)
+CREATE TABLE IF NOT EXISTS doc (text STRING) ROW FORMAT DELIMITED LINES TERMINATED BY '\n' STORED AS TEXTFILE;
+-- 2) load local file into the table (adjust path as needed)
+LOAD DATA LOCAL INPATH '/home/training/Desktop/Inputs/wordCountInput.txt' OVERWRITE INTO TABLE doc;
+-- 3) word count using LATERAL VIEW explode(split(...))
+SELECT word, COUNT(*) AS cnt FROM doc LATERAL VIEW explode(split(text, ' ')) t AS word GROUP BY word ORDER BY cnt DESC;
+-- if run using hql saves file as hql extension
+hive -f ' /hql-file-path ';
+*** JOINS ***
+1. Create Output Table (out1)
+CREATE TABLE out1 (custno INT,firstname STRING,age INT,profession STRING,amount DOUBLE,product STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',';
+2. Insert Into out1 (JOIN customers + transactions)
+INSERT OVERWRITE TABLE out1 SELECT a.custno, a.firstname, a.age, a.profession, b.amount, b.product FROM customer a JOIN transactions b ON a.custno = b.custno;
+3. 100 Records
+SELECT * FROM out1 LIMIT 100;
+4. Create out2 Table (Top Spending Customers)
+CREATE TABLE out2 ( custno INT, firstname STRING, age INT, profession STRING, amount DOUBLE) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',';
+5. Insert Top 10 Spending Customers
+INSERT OVERWRITE TABLE out2 SELECT c.custno, c.firstname, c.age, c.profession, SUM(t.amount) AS totalamt FROM customer c JOIN transactions t ON c.custno = t.custno GROUP BY c.custno, c.firstname, c.age, c.profession ORDER BY totalamt DESC LIMIT 10;
+6. View out2
+SELECT * FROM out2;
+7. Create out3 (Age-based Category Table)
+CREATE TABLE out3 (custno INT, firstname STRING, age INT, profess ion STRING, amount DOUBLE, product STRING, level S TRING)ROW FORMAT DELIMITEDFIELDS TERM INATED BY ',';
+8. Insert Into out3 (Age → Level Mapping)
+INSERT OVERWRITE TABLE out3 SELECT *, CASE WHEN age < 30 THEN 'low' WHEN age >= 30 AND age < 50 THEN 'middle' WHEN age >= 50 THEN 'old' ELSE 'others' END AS level FROM out1;
+9. Display Sample Records
+SELECT * FROM out3 LIMIT 10;
+***Create another table for output***
+create table out1(custno int, firstname string, age int, profession string, amount double, product string) row format delimited fields terminated by ',';
+***Add data in table from existing 2 tables using JOIN***
+insert overwrite table out1 select a.custno, a.firstname, a.age, a.profession, b.amount, b.product from customer a JOIN txnrecords b ON a.custno = b.custno;
+***Display details of 10 customers having highest amount spent***
+create table out2(custno int, firstname string, age int, profession string, amount double, product string, level string) row format delimited fields terminated by ‘,’;
+insert overwrite table out2 select c.custno, c.firstname, c.age, c.profession, sum(t.amount) as totalamt from customer c join txnrecords t on c.custno = t.custno group by c.custno, c.firstname, c.age, c.profession order by totalamt desc limit 10;
+***What is the oldest known movie in the database?Note that movies with unknown years have a value of 0 in the year field --‐ these do not belong in your answer.***
+select name,year from movie where year!=0 order by year limit 1;
+***List the name and year of all unrated movies (movies where the movie data has no related movierating data).***
+select m.name, m.year from movie m LEFT OUTER JOIN movierating b on m.id = b.movieid where b.movieid is NULL;
+***Produce an updated copy of the movie data with two new fields:numratings --‐ the number of ratings for the movie avgrating --‐ the average rating for the movie ( Unrated movies are not needed in this copy.)***
+create table movie2 (id int, name string, year int, numratings int, avgratings double) row format delimited fields terminated by '\t';
+select m.name, b.rating from movie m JOIN movierating b on m.id=b, movieid order by b.rating desc limit 10;
+
 -------------PIG----------------- 
 data= load '/user/training/input/CountryProjectDataset.txt' USING PigStorage(',') AS
 (name:chararray ,landmass:int ,zone:int ,area:int ,population:int ,language:int ,religion:int ,bars:int
@@ -95,3 +137,63 @@ DUMP result;
 both = FILTER data BY icon == 1 AND text == 1;
 result = FOREACH (GROUP both ALL) GENERATE COUNT(both);
 DUMP result;
+-- load file (one line per record)
+A = LOAD '/user/training/shakespere/poems' AS (line:chararray);
+-- tokenize each line into a bag of tokens
+B = FOREACH A GENERATE TOKENIZE(line) AS tokens;
+-- flatten tokens so each row is a single word
+C = FOREACH B GENERATE FLATTEN(tokens) AS word_raw;
+-- normalize: trim and lowercase, and filter out empty strings
+W = FOREACH C GENERATE LOWER(TRIM(word_raw)) AS word;
+W = FILTER W BY word IS NOT NULL AND word != '';
+-- group by word and count occurrences
+D = GROUP W BY word;
+E = FOREACH D GENERATE group AS word, COUNT(W) AS cnt;
+-- order by count descending (most frequent first)
+F = ORDER E BY cnt DESC;
+-- store results
+STORE F INTO '/user/training/pigWordCount' USING PigStorage(',');
+***count the number of associated sub-patents for each patent is in this dataset***
+A = LOAD '/user/training/patentInput' using PigStorage(' ') as
+(pid:int, spid:double);
+B = group A by pid;
+C = foreach B generate group, COUNT(A);
+store C into '/user/training/subpatentOutput2';
+*** To find the total number of crimes which occurred in all the states in the year 2006.***
+A = LOAD...
+B = group A ALL;
+C = foreach B generate group, SUM(A.year_2006);
+store C into 'output location';
+***Calculate the number of females (age between 18-30 years) who were victims in different crimes in different states.***
+A = LOAD...
+B = group A by state;
+C = foreach B generate group, SUM(A.f_18_30);
+store C into 'output location'
+***Which state have highest rape cases across all years***
+A= LOAD...
+B = FILTER A BY REPLACE(crimehead, '"', '') =='RAPE';
+C = FOREACH B GENERATE state, crimehead, SUM(TOBAG(year_2001,year_2002,all year)) AS all_years;
+D = group C bystate;
+E = foreach D generate group as state, MAX(c.allyears);
+F = order E by $1 desc;
+G = limit F 1;
+store G into 'output location';
+***Find the maximum dowry deaths happened in which year and in which state***
+A = LOAD...
+B = FILTER A BY REPLACE(crimehead,'"','')=='DOWRY DEATHS';
+C = FOREACH B GENERATE state, TOBAG(
+            TOTUPLE('2001', year_2001),
+            TOTUPLE('2002', year_2002),
+            TOTUPLE('2003', year_2003),
+            TOTUPLE('2004', year_2004),
+      ) AS year_counts;
+D = FOREACH C GENERATE state, FLATTEN(year_counts) AS (year:chararray, count:int);
+E = ORDER D BY count DESC;
+F = LIMIT E 1;
+store F into 'output location';
+***Calculate the number of males (age between 45-60 years) who were victims in “Kidnapping and abduction” in different states***
+A = LOAD
+B = FILTER A BY REPALCE (crimehead, '"','')=='Kidnapping and Abduction';
+C = GROUP B BY state;
+D = FOREACH C GENERATE group AS state, COUNT(B.m_45_0) AS male-45_60_victims;
+store D into 'output lcaotion';
