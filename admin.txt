@@ -1,199 +1,1024 @@
--------------HIVE-----------------
-create database assg;
-use assg;
-create table flags(name string,landmass int,zone int,area int,population int,language int,religion
-int,bars int,stripes int,colours int,red int,green int,blue int,gold int,white int,black int,orange
-int,mainhue string,circles int,crosses int,saltires int,quarters int,sunstars int,crescent int,triangle
-int,icon int,animate int,text int,topleft string,botright string) row format delimited fields terminated
-by ',' stored as textfile;
-----add dataset to hdfs----
-hdfs dfs -copyFromLocal '/home/training/Desktop/Country Project Dataset.txt' '/user/hive/flag';
-----then add the loaded dataset from hdfs to the table schema created above ----
-LOAD DATA INPATH '/user/hive/flag' INTO TABLE flags;
----some queries----
-***Count the number of countries based on land mass***
-SELECT landmass, COUNT(*) FROM flags GROUP BY landmass;
-***Find out top 5 country with Sum of bars and strips in a flag***
-SELECT name, (bars + stripes) AS total FROM flags ORDER BY total DESC LIMIT 5;
-***Count of countries with icon.***
-SELECT COUNT(*)FROM flags  WHERE icon = 1;
-*** Count of countries which have same top left and top right color in flag***
-SELECT COUNT(*) FROM flags WHERE topleft = botright;
-***Count the number of countries based on zone***
-SELECT zone, COUNT(*) FROM flags GROUP BY zone;
-***Find out the largest country in terms of area in the NE zone***
-SELECT name, area FROM flags WHERE zone = 1 ORDER BY area DESC LIMIT 1;
-***Find out least populated country in S.America landmass***
-SELECT name, population FROM flags WHERE landmass = 2 ORDER BY population ASC LIMIT 1;
-***Find out the largest speaking language among all countries***
-SELECT language, COUNT(*) AS countrycount FROM flags GROUP BY language ORDER BY countrycount DESC LIMIT 1;
-***Find most common colour among flags from all countries***
-SELECT color, count FROM ( SELECT 'red' AS color, SUM(red) AS count FROM flags UNION ALL SELECT 'green' AS color, SUM(green) AS count FROM flags UNION ALL SELECT 'blue' AS color, SUM(blue) AS count FROM flags
-UNION ALL SELECT 'gold' AS color, SUM(gold) AS count FROM flags UNION ALL SELECT 'white' AS color, SUM(white) AS count FROM flags UNION ALL SELECT 'black' AS color, SUM(black) AS count FROM flags UNION ALL SELECT 'orange' AS color, SUM(orange) AS count FROM flags) color_counts ORDER BY count DESC LIMIT 1;
-***Sum of all circles present in all country flags***
-SELECT SUM(circles) FROM flags;
-***Count of countries which have both icon and text in flag***
-SELECT COUNT(*) FROM flags WHERE icon = 1 AND text = 1;
--- 1) create table (each line is one record)
-CREATE TABLE IF NOT EXISTS doc (text STRING) ROW FORMAT DELIMITED LINES TERMINATED BY '\n' STORED AS TEXTFILE;
--- 2) load local file into the table (adjust path as needed)
-LOAD DATA LOCAL INPATH '/home/training/Desktop/Inputs/wordCountInput.txt' OVERWRITE INTO TABLE doc;
--- 3) word count using LATERAL VIEW explode(split(...))
-SELECT word, COUNT(*) AS cnt FROM doc LATERAL VIEW explode(split(text, ' ')) t AS word GROUP BY word ORDER BY cnt DESC;
--- if run using hql saves file as hql extension
-hive -f ' /hql-file-path ';
-*** JOINS ***
-1. Create Output Table (out1)
-CREATE TABLE out1 (custno INT,firstname STRING,age INT,profession STRING,amount DOUBLE,product STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',';
-2. Insert Into out1 (JOIN customers + transactions)
-INSERT OVERWRITE TABLE out1 SELECT a.custno, a.firstname, a.age, a.profession, b.amount, b.product FROM customer a JOIN transactions b ON a.custno = b.custno;
-3. 100 Records
-SELECT * FROM out1 LIMIT 100;
-4. Create out2 Table (Top Spending Customers)
-CREATE TABLE out2 ( custno INT, firstname STRING, age INT, profession STRING, amount DOUBLE) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',';
-5. Insert Top 10 Spending Customers
-INSERT OVERWRITE TABLE out2 SELECT c.custno, c.firstname, c.age, c.profession, SUM(t.amount) AS totalamt FROM customer c JOIN transactions t ON c.custno = t.custno GROUP BY c.custno, c.firstname, c.age, c.profession ORDER BY totalamt DESC LIMIT 10;
-6. View out2
-SELECT * FROM out2;
-7. Create out3 (Age-based Category Table)
-CREATE TABLE out3 (custno INT, firstname STRING, age INT, profess ion STRING, amount DOUBLE, product STRING, level S TRING)ROW FORMAT DELIMITEDFIELDS TERM INATED BY ',';
-8. Insert Into out3 (Age → Level Mapping)
-INSERT OVERWRITE TABLE out3 SELECT *, CASE WHEN age < 30 THEN 'low' WHEN age >= 30 AND age < 50 THEN 'middle' WHEN age >= 50 THEN 'old' ELSE 'others' END AS level FROM out1;
-9. Display Sample Records
-SELECT * FROM out3 LIMIT 10;
-***Create another table for output***
-create table out1(custno int, firstname string, age int, profession string, amount double, product string) row format delimited fields terminated by ',';
-***Add data in table from existing 2 tables using JOIN***
-insert overwrite table out1 select a.custno, a.firstname, a.age, a.profession, b.amount, b.product from customer a JOIN txnrecords b ON a.custno = b.custno;
-***Display details of 10 customers having highest amount spent***
-create table out2(custno int, firstname string, age int, profession string, amount double, product string, level string) row format delimited fields terminated by ‘,’;
-insert overwrite table out2 select c.custno, c.firstname, c.age, c.profession, sum(t.amount) as totalamt from customer c join txnrecords t on c.custno = t.custno group by c.custno, c.firstname, c.age, c.profession order by totalamt desc limit 10;
-***What is the oldest known movie in the database?Note that movies with unknown years have a value of 0 in the year field --‐ these do not belong in your answer.***
-select name,year from movie where year!=0 order by year limit 1;
-***List the name and year of all unrated movies (movies where the movie data has no related movierating data).***
-select m.name, m.year from movie m LEFT OUTER JOIN movierating b on m.id = b.movieid where b.movieid is NULL;
-***Produce an updated copy of the movie data with two new fields:numratings --‐ the number of ratings for the movie avgrating --‐ the average rating for the movie ( Unrated movies are not needed in this copy.)***
-create table movie2 (id int, name string, year int, numratings int, avgratings double) row format delimited fields terminated by '\t';
-select m.name, b.rating from movie m JOIN movierating b on m.id=b, movieid order by b.rating desc limit 10;
+***Implementation of Logistic regression algorithm***
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 
--------------PIG----------------- 
-data= load '/user/training/input/CountryProjectDataset.txt' USING PigStorage(',') AS
-(name:chararray ,landmass:int ,zone:int ,area:int ,population:int ,language:int ,religion:int ,bars:int
-,stripes:int ,colours:int ,red:int ,green:int ,blue:int ,gold:int ,white:int ,black:int ,orange:int
-,mainhue:chararray ,circles:int ,crosses:int ,saltires:int ,quarters:int ,sunstars:int ,crescent:int
-,triangle:int ,icon:int ,animate:int ,text:int ,topleft:chararray ,botright:chararray);
----some queries---
-***Count the number of countries based on landmass***
-grouped = GROUP data BY landmass;
-result = FOREACH grouped GENERATE group AS landmass, COUNT(data) AS country_count;
-dump result;
-***Find out top 5 country with Sum of bars and strips in a flag***
-addsum = FOREACH data GENERATE name, (bars + stripes) AS total;
-ordered = ORDER addsum BY total DESC;
-top5 = LIMIT ordered 5;
-DUMP top5;
-***Count of countries with icon***
-with_icon = FILTER data BY icon == 1;
-count_icon = FOREACH (GROUP with_icon ALL) GENERATE COUNT(with_icon);
-DUMP count_icon;
-***Count of countries which have same top left and top right color in flag***
-same_color = FILTER data BY topleft == botright;
-result = FOREACH (GROUP same_color ALL) GENERATE COUNT(same_color);
-DUMP result;
-***Count number of countries based on zone.***
-grouped = GROUP data BY zone;
-result = FOREACH grouped GENERATE group AS zone, COUNT(data) AS country_count;
-DUMP result;
-***Find out largest county in terms of area in NE zone***
-ne_zone = FILTER data BY zone == 1;
-max_country = ORDER ne_zone BY area DESC;
-largest = LIMIT max_country 1;
-DUMP largest;
-***Find out least populated country in S.America landmass***
-south_america = FILTER data BY landmass == 2;
-ordered = ORDER south_america BY population ASC;
-least = LIMIT ordered 1;
-DUMP least;
-***Find out largest speaking language among all countries***
-grouped = GROUP data BY language;
-counted = FOREACH grouped GENERATE group AS language, COUNT(data) AS country_count;
-ordered = ORDER counted BY country_count DESC;
-top1 = LIMIT ordered 1;
-DUMP top1;
-***Find most common colour among flags from all countries***
-colors = FOREACH data GENERATE(red == 1 ? 'red' : null) AS color1,(green == 1 ? 'green' : null) AS color2,(blue == 1 ? 'blue' : null) AS color3,(gold == 1 ? 'gold' : null) AS color4,(white == 1 ? 'white' : null) AS color5,(black == 1 ? 'black' : null) AS color6,(orange == 1 ? 'orange' : null) AS color7;
-flat = FOREACH colors GENERATE FLATTEN((TOTUPLE(color1,color2,color3,color4,color5,color6,color7)));
-filtered = FILTER flat BY $0 IS NOT NULL;
-grouped = GROUP filtered BY $0;
-result = FOREACH grouped GENERATE group AS color, COUNT(filtered) AS count;
-ordered = ORDER result BY count DESC;
-top1 = LIMIT ordered 1;
-DUMP top1;
-***Sum of all circles present in all country flags***
-grouped = GROUP data ALL;
-result = FOREACH grouped GENERATE SUM(data.circles);
-DUMP result;
-***Count of countries which have both icon and text in flag***
-both = FILTER data BY icon == 1 AND text == 1;
-result = FOREACH (GROUP both ALL) GENERATE COUNT(both);
-DUMP result;
--- load file (one line per record)
-A = LOAD '/user/training/shakespere/poems' AS (line:chararray);
--- tokenize each line into a bag of tokens
-B = FOREACH A GENERATE TOKENIZE(line) AS tokens;
--- flatten tokens so each row is a single word
-C = FOREACH B GENERATE FLATTEN(tokens) AS word_raw;
--- normalize: trim and lowercase, and filter out empty strings
-W = FOREACH C GENERATE LOWER(TRIM(word_raw)) AS word;
-W = FILTER W BY word IS NOT NULL AND word != '';
--- group by word and count occurrences
-D = GROUP W BY word;
-E = FOREACH D GENERATE group AS word, COUNT(W) AS cnt;
--- order by count descending (most frequent first)
-F = ORDER E BY cnt DESC;
--- store results
-STORE F INTO '/user/training/pigWordCount' USING PigStorage(',');
-***count the number of associated sub-patents for each patent is in this dataset***
-A = LOAD '/user/training/patentInput' using PigStorage(' ') as
-(pid:int, spid:double);
-B = group A by pid;
-C = foreach B generate group, COUNT(A);
-store C into '/user/training/subpatentOutput2';
-*** To find the total number of crimes which occurred in all the states in the year 2006.***
-A = LOAD...
-B = group A ALL;
-C = foreach B generate group, SUM(A.year_2006);
-store C into 'output location';
-***Calculate the number of females (age between 18-30 years) who were victims in different crimes in different states.***
-A = LOAD...
-B = group A by state;
-C = foreach B generate group, SUM(A.f_18_30);
-store C into 'output location'
-***Which state have highest rape cases across all years***
-A= LOAD...
-B = FILTER A BY REPLACE(crimehead, '"', '') =='RAPE';
-C = FOREACH B GENERATE state, crimehead, SUM(TOBAG(year_2001,year_2002,all year)) AS all_years;
-D = group C bystate;
-E = foreach D generate group as state, MAX(c.allyears);
-F = order E by $1 desc;
-G = limit F 1;
-store G into 'output location';
-***Find the maximum dowry deaths happened in which year and in which state***
-A = LOAD...
-B = FILTER A BY REPLACE(crimehead,'"','')=='DOWRY DEATHS';
-C = FOREACH B GENERATE state, TOBAG(
-            TOTUPLE('2001', year_2001),
-            TOTUPLE('2002', year_2002),
-            TOTUPLE('2003', year_2003),
-            TOTUPLE('2004', year_2004),
-      ) AS year_counts;
-D = FOREACH C GENERATE state, FLATTEN(year_counts) AS (year:chararray, count:int);
-E = ORDER D BY count DESC;
-F = LIMIT E 1;
-store F into 'output location';
-***Calculate the number of males (age between 45-60 years) who were victims in “Kidnapping and abduction” in different states***
-A = LOAD
-B = FILTER A BY REPALCE (crimehead, '"','')=='Kidnapping and Abduction';
-C = GROUP B BY state;
-D = FOREACH C GENERATE group AS state, COUNT(B.m_45_0) AS male-45_60_victims;
-store D into 'output lcaotion';
+# Load dataset
+data = pd.read_excel('/content/extended_heavy_rain_flood_prediction_dataset.xlsx')
+data = pd.DataFrame(data)
+
+# Encode target column
+data['Flood Risk'] = data['Flood Risk'].map({'Yes': 1, 'No': 0})
+
+# Select features
+X = data[['Average Annual Rainfall (mm)', 
+          'Maximum Rainfall in 24 hrs (mm)',
+          'Elevation (m)', 
+          'Distance to Nearest River (km)',
+          'Population Density (persons/km²)']]
+
+y = data['Flood Risk']
+
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Feature scaling
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# Logistic Regression model
+model = LogisticRegression()
+model.fit(X_train_scaled, y_train)
+
+# Predictions
+y_pred = model.predict(X_test_scaled)
+
+# Evaluation
+accuracy = accuracy_score(y_test, y_pred)
+conf_matrix = confusion_matrix(y_test, y_pred)
+class_report = classification_report(y_test, y_pred)
+
+print(f"Accuracy: {accuracy * 100}")
+print(f"Confusion Matrix:\n{conf_matrix}")
+print(f"Classification Report:\n{class_report}")
+
+# Example prediction
+predict1 = model.predict([[2150, 214, 461, 55, 123]])
+print(predict1)
+
+
+***Building an optimized simple Neural Network***
+import numpy as np
+import tensorflow as tf
+
+# Define Network
+model = tf.keras.Sequential([
+    tf.keras.layers.Input(shape=(2,)),
+    tf.keras.layers.Dense(2, activation='sigmoid'),
+    tf.keras.layers.Dense(1, activation='sigmoid')
+])
+
+# Compile Network
+model.compile(
+    optimizer='adam',
+    loss='binary_crossentropy',
+    metrics=['accuracy']
+)
+
+# Fit Network
+model.fit(x, y, epochs=1000, verbose=1)
+
+# Evaluate the model
+loss, accuracy = model.evaluate(x, y)
+print(f"Loss: {loss}")
+print(f"Accuracy: {accuracy * 100}%")
+
+# Predictions
+predictions = model.predict(x)
+print(predictions)
+
+***Implementation of Perceptron***
+# Perceptron: a memory-less Neural Network
+
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_iris
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.optimizers import SGD
+from keras.utils import to_categorical
+
+# Load the iris dataset
+iris = load_iris()
+X = iris.data
+y = iris.target
+
+# One-hot encode the target variable
+y = to_categorical(y)
+
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# Standardize features
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# Initialize the perceptron model
+perceptron_model = Sequential()
+
+# Add an input layer (4 neurons) and output layer (3 neurons)
+perceptron_model.add(Dense(3, input_dim=4, activation='softmax'))
+
+# Compile the model
+perceptron_model.compile(
+    loss='categorical_crossentropy',
+    optimizer='adam',     # though comment mentioned SGD, code shows adam
+    metrics=['accuracy']
+)
+
+# Train the model
+perceptron_model.fit(
+    X_train, y_train,
+    epochs=50,
+    batch_size=5,
+    verbose=1
+)
+
+# Evaluate the model
+loss, accuracy = perceptron_model.evaluate(X_test, y_test, verbose=0)
+print('Test loss:', loss)
+print(f'Test accuracy: {accuracy * 100:.2f}%')
+
+
+***Program based on Multilayer perceptron***
+# Perceptron : a memory-less Neural Network
+
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_iris
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.optimizers import SGD
+from keras.utils import to_categorical
+
+# Load the iris dataset
+iris = load_iris()
+X = iris.data
+y = iris.target
+
+# One-hot encoding the target variable
+y = to_categorical(y)
+
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# Standardize the features
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# Initialize the Multi-layer Perceptron (MLP) model
+mlp_model = Sequential()
+
+# Add an input layer with 4 neurons, a hidden layer with 8 neurons, and output layer with 3 neurons
+mlp_model.add(Dense(8, input_dim=4, activation='relu'))
+mlp_model.add(Dense(6, activation='relu'))  # hidden layer
+mlp_model.add(Dense(3, activation='softmax'))
+
+# Compile the model
+mlp_model.compile(
+    loss='categorical_crossentropy',
+    optimizer='adam',
+    metrics=['accuracy']
+)
+
+# Train the model
+mlp_model.fit(
+    X_train, y_train,
+    epochs=50,
+    batch_size=5,
+    verbose=1
+)
+
+# Evaluate the model on the test set
+loss, accuracy = mlp_model.evaluate(X_test, y_test, verbose=0)
+print('Test loss:', loss)
+print(f'Test accuracy: {accuracy * 100:.2f}%')
+
+
+***Introduction to keras library***
+import numpy as np
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from sklearn.model_selection import train_test_split
+
+# Generate dummy data
+X = np.random.rand(1000, 20)   # 1000 samples, 20 features
+y = np.random.randint(0, 2, size=(1000, 1))   # Binary target (0 or 1)
+
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# Build the model
+model = Sequential()
+model.add(Dense(32, input_dim=20, activation='relu'))   # Hidden layer with 32 neurons
+model.add(Dense(1, activation='sigmoid'))               # Output layer with 1 neuron
+
+# Compile the model
+model.compile(
+    loss='binary_crossentropy',
+    optimizer='adam',
+    metrics=['accuracy']
+)
+
+# Train the model
+model.fit(
+    X_train, y_train,
+    epochs=10,
+    batch_size=32,
+    verbose=1
+)
+
+# Evaluate the model
+loss, accuracy = model.evaluate(X_test, y_test)
+print(f"Loss: {loss:.4f}, Accuracy: {accuracy:.4f}")
+
+
+***Implementation of Artificial Neural Network***
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import LabelEncoder
+
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.utils import to_categorical, plot_model
+
+import tensorflow as tf
+
+# Load the dataset
+data = pd.read_csv(
+    "https://raw.githubusercontent.com/aniruddhachoudhury/Red-Wine-Quality/master/winequality-red.csv"
+)
+
+# Preprocess the data
+X = data.drop('quality', axis=1)
+y = data['quality']
+
+# Encode the quality labels (convert to categories)
+# Subtract 1 only if dataset labels start at 1; here they are 3–8, so subtract 3
+y_encoded = to_categorical(y - y.min())
+
+# Split the dataset
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y_encoded, test_size=0.3, random_state=42
+)
+
+# Standardize the features
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# Build the model
+model = Sequential([
+    Dense(64, input_dim=X_train.shape[1], activation='relu'),
+    Dense(64, activation='relu'),
+    Dense(64, activation='relu'),
+    Dense(64, activation='relu'),
+    Dense(y_encoded.shape[1], activation='softmax')  # Output layer
+])
+
+# Compile the model
+model.compile(
+    optimizer='adam',
+    loss='categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+# Train the model
+history = model.fit(
+    X_train, y_train,
+    epochs=15,
+    batch_size=32,
+    validation_split=0.1,
+    verbose=1
+)
+
+# Print summary
+model.summary()
+
+# Evaluate the model
+loss, accuracy = model.evaluate(X_test, y_test)
+print(f"Test loss: {loss:.4f}, Test accuracy: {accuracy*100:.4f}%")
+
+
+***Implementation of Artificial Neural Network model: case study – Indian liver patient dataset***
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
+# Load the dataset
+url = "/content/indian_liver_patient.csv"
+data = pd.read_csv(url)
+data.head()
+
+# Check for missing values
+data.isnull().sum()
+
+# Separate features (X) and target (y)
+X = data.drop('Dataset', axis=1)
+y = data['Dataset']
+
+print(X)
+print(y)
+
+# Split into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# Categorical and numerical feature columns
+categorical_features = ['Gender']
+numerical_features = [
+    'Age', 'Total_Bilirubin', 'Direct_Bilirubin', 'Alkaline_Phosphotase',
+    'Alamine_Aminotransferase'
+]
+
+# One-hot encode the categorical features
+encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
+
+encoded_train_data = encoder.fit_transform(X_train[categorical_features])
+encoded_test_data = encoder.transform(X_test[categorical_features])
+
+# Convert encoded arrays to DataFrames
+encoded_train_df = pd.DataFrame(
+    encoded_train_data,
+    columns=encoder.get_feature_names_out(categorical_features),
+    index=X_train.index
+)
+
+encoded_test_df = pd.DataFrame(
+    encoded_test_data,
+    columns=encoder.get_feature_names_out(categorical_features),
+    index=X_test.index
+)
+
+# Concatenate categorical + numerical features
+X_train = pd.concat([X_train[numerical_features], encoded_train_df], axis=1)
+X_test = pd.concat([X_test[numerical_features], encoded_test_df], axis=1)
+
+# Scale numerical + encoded features
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# Build ANN model
+import tensorflow as tf
+from tensorflow import keras
+
+model = keras.Sequential([
+    keras.layers.Dense(64, activation='relu', input_shape=(X_train.shape[1],)),
+    keras.layers.Dense(64, activation='relu'),
+    keras.layers.Dense(1, activation='sigmoid')
+])
+
+# Compile the model
+model.compile(
+    optimizer='adam',
+    loss='binary_crossentropy',
+    metrics=['accuracy']
+)
+
+# Train the model
+history = model.fit(
+    X_train, y_train,
+    epochs=50,
+    batch_size=32,
+    validation_data=(X_test, y_test)
+)
+
+# Evaluate the model
+loss, accuracy = model.evaluate(X_test, y_test)
+print(f"Test Loss: {loss:.4f}")
+print(f"Test Accuracy: {accuracy:.4f}")
+
+
+***Understanding the concept of Hyperparameter tuning, Regularization and Optimization with deep learning model context***
+# Full CIFAR-10 CNN script (ready to run)
+# The uploaded file path from this session (available if you want to reference it)
+file_url = "/mnt/data/5e5ab258-1a9b-46fb-b13f-8527a1050d54.png"
+
+import tensorflow as tf
+from tensorflow.keras import regularizers
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Dropout, Flatten, Dense
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
+
+# Correct import for CIFAR-10
+from tensorflow.keras.datasets import cifar10
+
+# Load CIFAR-10 dataset
+(X_train, y_train), (X_test, y_test) = cifar10.load_data()
+
+# Normalize pixel values to [0, 1]
+X_train = X_train.astype("float32") / 255.0
+X_test  = X_test.astype("float32") / 255.0
+
+# Build the CNN model
+weight_decay = 0.001
+model = Sequential([
+    Conv2D(64, (3, 3), activation='relu', padding='same',
+           input_shape=(32, 32, 3), kernel_regularizer=regularizers.l2(weight_decay)),
+    Conv2D(64, (3, 3), activation='relu', padding='same',
+           kernel_regularizer=regularizers.l2(weight_decay)),
+    MaxPooling2D((2, 2)),
+    Dropout(0.4),
+
+    Conv2D(128, (3, 3), activation='relu', padding='same',
+           kernel_regularizer=regularizers.l2(weight_decay)),
+    Conv2D(128, (3, 3), activation='relu', padding='same',
+           kernel_regularizer=regularizers.l2(weight_decay)),
+    MaxPooling2D((2, 2)),
+    Dropout(0.4),
+
+    Flatten(),
+    Dense(256, activation='relu', kernel_regularizer=regularizers.l2(weight_decay)),
+    Dropout(0.5),
+    Dense(10, activation='softmax')   # 10 classes in CIFAR-10
+])
+
+# Compile the model with a lower learning rate
+opt = Adam(learning_rate=1e-4)
+model.compile(optimizer=opt,
+              loss='sparse_categorical_crossentropy',
+              metrics=['accuracy'])
+
+model.summary()
+
+# Data augmentation
+datagen = ImageDataGenerator(
+    rotation_range=15,
+    width_shift_range=0.1,
+    height_shift_range=0.1,
+    horizontal_flip=True
+)
+datagen.fit(X_train)
+
+# Callbacks
+checkpoint_path = "/mnt/data/cifar10_cnn_best.h5"
+callbacks = [
+    ModelCheckpoint(checkpoint_path, monitor='val_accuracy', save_best_only=True, verbose=1),
+    ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, verbose=1),
+    EarlyStopping(monitor='val_loss', patience=8, verbose=1, restore_best_weights=True)
+]
+
+# Train the model using the data generator
+history = model.fit(
+    datagen.flow(X_train, y_train, batch_size=32),
+    steps_per_epoch = X_train.shape[0] // 32,
+    epochs=25,
+    validation_data=(X_test, y_test),
+    callbacks=callbacks,
+    verbose=1
+)
+
+# Evaluate the model
+test_loss, test_acc = model.evaluate(X_test, y_test, verbose=0)
+print(f"Test loss: {test_loss:.4f}, Test accuracy: {test_acc:.4f}")
+
+# Save final model
+final_model_path = "/mnt/data/cifar10_cnn_final.h5"
+model.save(final_model_path)
+print(f"Saved final model to: {final_model_path}")
+
+
+***Implementation of Convolutional neural networks on Cifar dataset***
+import tensorflow as tf
+from tensorflow import keras
+import matplotlib.pyplot as plt
+import numpy as np
+from sklearn.metrics import confusion_matrix, classification_report
+
+# Load the dataset
+(X_train, y_train), (X_test, y_test) = keras.datasets.cifar10.load_data()
+
+print(X_train.shape)
+print(y_train.shape)
+
+# Flatten y (labels) into 1-D arrays
+y_train = y_train.reshape(-1,)
+y_test = y_test.reshape(-1,)
+
+# Classes in CIFAR-10
+classes = [
+    "airplane", "automobile", "bird", "cat", "deer",
+    "dog", "frog", "horse", "ship", "truck"
+]
+
+# Function to show a sample image
+def plot_sample(X, y, index):
+    plt.figure(figsize=(5, 2))
+    plt.imshow(X[index])
+    plt.xlabel(classes[y[index]])
+    plt.show()
+
+# Show sample images
+plot_sample(X_train, y_train, 0)
+plot_sample(X_train, y_train, 1)
+
+# Normalize pixel values
+X_train = X_train / 255.0
+X_test = X_test / 255.0
+
+# Build ANN model
+ann = keras.Sequential([
+    keras.layers.Flatten(input_shape=(32, 32, 3)),
+    keras.layers.Dense(3000, activation='relu'),
+    keras.layers.Dense(1000, activation='relu'),
+    keras.layers.Dense(10, activation='sigmoid')
+])
+
+# Compile model
+ann.compile(
+    optimizer='SGD',
+    loss='sparse_categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+# Train model
+ann.fit(X_train, y_train, epochs=5)
+
+# Predictions
+y_pred = ann.predict(X_test)
+
+# Convert probabilities into predicted class IDs
+y_pred_classes = [np.argmax(element) for element in y_pred]
+
+# Classification report
+print("Classification Report:\n")
+print(classification_report(y_test, y_pred_classes))
+
+
+
+***Predicting house prices using Artificial Neural Network***
+# local file path (from this session's history)
+file_url = "/mnt/data/709bf89d-a186-4580-857c-7bf22d7bb338.png"
+
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+import tensorflow as tf
+
+# --- Load data ---
+# (your system/tool will transform file_url to an actual CSV URL/path)
+data = pd.read_csv(file_url)
+
+# --- Prepare features and target ---
+# drop 'Price' and 'Home' columns from features (as in the original snippet)
+X = data.drop(columns=["Price", "Home"], axis=1)
+y = data["Price"]
+
+# Encode categorical columns (LabelEncoder used in the images)
+le = LabelEncoder()
+if 'Neighborhood' in X.columns:
+    X['Neighborhood'] = le.fit_transform(X['Neighborhood'].astype(str))
+if 'Brick' in X.columns:
+    X['Brick'] = le.fit_transform(X['Brick'].astype(str))
+
+# Optional: scale features (recommended for NN training)
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# Split into train/test
+X_train, X_test, y_train, y_test = train_test_split(
+    X_scaled, y, test_size=0.2, random_state=42
+)
+
+# --- Model 1: smaller regression network (as in first snippet) ---
+model = Sequential([
+    Dense(64, activation='relu', input_shape=(X_train.shape[1],)),
+    Dense(32, activation='relu'),
+    Dense(16, activation='relu'),
+    Dense(1)  # regression output
+])
+
+model.compile(optimizer='adam', loss='mean_absolute_error', metrics=['mae'])
+
+# Train
+model.fit(X_train, y_train, epochs=100, batch_size=16, validation_split=0.2, verbose=1)
+
+# Evaluate
+mae = model.evaluate(X_test, y_test, verbose=0)[0]
+print(f"Mean Absolute Error: {mae:.4f}")
+
+# Predictions and R² calculation
+y_pred = model.predict(X_test)
+# Ensure shapes align
+y_pred_flat = y_pred.flatten()
+r_squared = 1.0 - (np.sum((y_test - y_pred_flat) ** 2) / np.sum((y_test - np.mean(y_test)) ** 2))
+print(f"R-Squared: {r_squared:.4f}")
+
+# --- Model 2: larger regression network (alternative shown in images) ---
+model2 = Sequential([
+    Dense(128, input_dim=X_train.shape[1], activation='relu'),
+    Dense(64, activation='relu'),
+    Dense(32, activation='relu'),
+    Dense(1, activation='linear')
+])
+
+model2.compile(optimizer='adam', loss='mean_squared_error', metrics=['mae'])
+
+model2.fit(X_train, y_train, epochs=50, batch_size=128, validation_data=(X_test, y_test), verbose=1)
+
+# Final predictions with model2
+y_pred2 = model2.predict(X_test)
+y_pred2_flat = y_pred2.flatten()
+r_squared2 = 1.0 - (np.sum((y_test - y_pred2_flat) ** 2) / np.sum((y_test - np.mean(y_test)) ** 2))
+print(f"Model2 - Test MSE: {np.mean((y_test - y_pred2_flat)**2):.4f}, R-Squared: {r_squared2:.4f}")
+
+# Optionally save trained model(s)
+model.save("/mnt/data/house_price_model_small.h5")
+model2.save("/mnt/data/house_price_model_large.h5")
+print("Saved models to /mnt/data/")
+
+
+***Classification of handwritten digits using Convolutional neural networks***
+# local file path (from this session's history; your tool will convert it to a usable URL)
+file_url = "/mnt/data/32b7a2ac-11d7-4b11-abf0-910d85f54805.png"
+
+import numpy as np
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from tensorflow.keras import Sequential, layers
+from tensorflow.keras.datasets import mnist
+
+# -------------------------
+# Load the MNIST dataset
+# -------------------------
+(X_train, y_train), (X_test, y_test) = mnist.load_data()
+
+print("X_train.shape:", X_train.shape)   # (60000, 28, 28)
+print("y_train.shape:", y_train.shape)   # (60000,)
+
+# -------------------------
+# Reshape labels to 1-D (already 1-D from mnist.load_data(), but keeping for parity)
+# -------------------------
+y_train = y_train.reshape(-1,)
+y_test  = y_test.reshape(-1,)
+
+# -------------------------
+# Visualize a few samples
+# -------------------------
+classes = [str(i) for i in range(10)]
+
+def plot_sample(X, y, index):
+    plt.figure(figsize=(3,3))
+    plt.imshow(X[index], cmap='gray')
+    plt.title(f"Label: {y[index]}")
+    plt.axis('off')
+    plt.show()
+
+plot_sample(X_train, y_train, 0)
+plot_sample(X_train, y_train, 1)
+
+# -------------------------
+# Preprocess the data
+# -------------------------
+# Determine input shape (height, width, channels)
+img_shape = X_train.shape[1:]           # (28, 28)
+# Convert to (28, 28, 1) and normalize to [0,1]
+X_train = X_train.reshape((-1, img_shape[0], img_shape[1], 1)).astype('float32') / 255.0
+X_test  = X_test.reshape((-1, img_shape[0], img_shape[1], 1)).astype('float32') / 255.0
+
+print("X_train reshaped:", X_train.shape)  # (60000, 28, 28, 1)
+
+# -------------------------
+# Build the CNN model
+# -------------------------
+model = Sequential()
+model.add(layers.Conv2D(32, (3,3), activation='relu', kernel_initializer='he_uniform', input_shape=(28,28,1)))
+model.add(layers.MaxPooling2D((2,2)))
+model.add(layers.Conv2D(48, (3,3), activation='relu', kernel_initializer='he_uniform'))
+model.add(layers.MaxPooling2D((2,2)))
+model.add(layers.Dropout(0.2))
+model.add(layers.Flatten())
+model.add(layers.Dense(500, activation='relu', kernel_initializer='he_uniform'))
+model.add(layers.Dense(10, activation='softmax'))
+
+model.summary()
+
+# -------------------------
+# Compile the model
+# -------------------------
+model.compile(
+    optimizer='adam',
+    loss='sparse_categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+# -------------------------
+# Train the model
+# -------------------------
+history = model.fit(
+    X_train, y_train,
+    epochs=10,
+    batch_size=128,
+    verbose=2,
+    validation_split=0.1
+)
+
+# -------------------------
+# Evaluate the model
+# -------------------------
+loss, accuracy = model.evaluate(X_test, y_test, verbose=0)
+print(f"Test loss: {loss:.4f}")
+print(f"Test accuracy: {accuracy * 100:.2f}%")
+
+# -------------------------
+# Predict on a single sample
+# -------------------------
+sample_index = 5
+image = X_train[sample_index]              # already normalized and shaped (28,28,1)
+plt.figure(); plt.imshow(np.squeeze(image), cmap='gray'); plt.title("Input sample"); plt.axis('off'); plt.show()
+
+# model.predict expects batch dimension
+image_batch = image.reshape(1, image.shape[0], image.shape[1], image.shape[2])
+p = model.predict(image_batch)
+predicted_label = np.argmax(p, axis=1)[0]
+print("Predicted value is:", predicted_label)
+
+# -------------------------
+# (Optional) Save model
+# -------------------------
+# model.save('/mnt/data/mnist_cnn_model.h5')
+# print("Saved model to /mnt/data/mnist_cnn_model.h5")
+
+
+***Image classification of animals using Convolutional neural networks***
+# Local uploaded file path from this session (your tool will convert it to a usable URL if needed)
+file_url = "/mnt/data/8d7416b0-bb67-44b8-8c6b-46ba385f8b52.png"
+
+import zipfile
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers, Sequential
+from tensorflow.keras.preprocessing import image
+import matplotlib.pyplot as plt
+import numpy as np
+import cv2
+import os
+
+# ---------------------------------------------------------------------
+# (Optional) Unzip train/test archives if present in working directory
+# ---------------------------------------------------------------------
+if os.path.exists("test.zip"):
+    with zipfile.ZipFile("test.zip", "r") as zip_ref:
+        zip_ref.extractall("test")
+
+if os.path.exists("train.zip"):
+    with zipfile.ZipFile("train.zip", "r") as zip_ref:
+        zip_ref.extractall("train")
+
+# ---------------------------------------------------------------------
+# Create datasets from directories
+# (adjust these directory paths if your extracted folders differ)
+# ---------------------------------------------------------------------
+train_ds_raw = tf.keras.utils.image_dataset_from_directory(
+    directory="/content/train/train",
+    labels="inferred",
+    label_mode="int",
+    batch_size=32,
+    image_size=(256, 256),
+    shuffle=True
+)
+
+validation_ds_raw = tf.keras.utils.image_dataset_from_directory(
+    directory="/content/test/test",
+    labels="inferred",
+    label_mode="int",
+    batch_size=32,
+    image_size=(256, 256),
+    shuffle=False
+)
+
+# Keep class names for later mapping of predictions
+class_names = train_ds_raw.class_names
+print("Class names:", class_names)
+
+# ---------------------------------------------------------------------
+# Normalize pixel values with a map() pipeline
+# ---------------------------------------------------------------------
+def process(image, label):
+    image = tf.cast(image / 255.0, tf.float32)
+    return image, label
+
+train_ds = train_ds_raw.map(process)
+validation_ds = validation_ds_raw.map(process)
+
+# Prefetch for performance
+AUTOTUNE = tf.data.AUTOTUNE
+train_ds = train_ds.prefetch(buffer_size=AUTOTUNE)
+validation_ds = validation_ds.prefetch(buffer_size=AUTOTUNE)
+
+# ---------------------------------------------------------------------
+# Build the CNN model
+# ---------------------------------------------------------------------
+model = Sequential([
+    layers.Conv2D(32, kernel_size=(3, 3), padding='valid', activation='relu', input_shape=(256, 256, 3)),
+    # layers.BatchNormalization(),
+    layers.MaxPooling2D(pool_size=(2, 2), strides=2, padding='valid'),
+
+    layers.Conv2D(64, kernel_size=(3, 3), padding='valid', activation='relu'),
+    # layers.BatchNormalization(),
+    layers.MaxPooling2D(pool_size=(2, 2), strides=2, padding='valid'),
+
+    layers.Conv2D(128, kernel_size=(3, 3), padding='valid', activation='relu'),
+    # layers.BatchNormalization(),
+    layers.MaxPooling2D(pool_size=(2, 2), strides=2, padding='valid'),
+
+    layers.Flatten(),
+    layers.Dense(128, activation='relu'),
+    # layers.Dropout(0.1),
+    layers.Dense(64, activation='relu'),
+    # layers.Dropout(0.1),
+    layers.Dense(1, activation='sigmoid')   # binary classification
+])
+
+model.summary()
+
+# ---------------------------------------------------------------------
+# Compile & train
+# ---------------------------------------------------------------------
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+
+history = model.fit(
+    train_ds,
+    validation_data=validation_ds,
+    epochs=10,
+    verbose=1
+)
+
+# ---------------------------------------------------------------------
+# Plot training & validation accuracy
+# ---------------------------------------------------------------------
+plt.plot(history.history['accuracy'], label='train')
+plt.plot(history.history['val_accuracy'], label='validation')
+plt.title('Model accuracy')
+plt.legend()
+plt.show()
+
+# ---------------------------------------------------------------------
+# Inference on individual images (example using test images)
+# - Update the image paths below to the actual test image locations you want to predict.
+# - We will normalize and reshape each image to (1,256,256,3) before prediction.
+# ---------------------------------------------------------------------
+def load_and_prepare_image(path, target_size=(256,256)):
+    img = cv2.imread(path)
+    if img is None:
+        raise FileNotFoundError(f"Image not found: {path}")
+    # convert BGR (cv2) -> RGB for display/consistency
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img_resized = cv2.resize(img, target_size)
+    img_norm = img_resized.astype('float32') / 255.0
+    return img_norm.reshape(1, target_size[0], target_size[1], 3)
+
+# Example image paths used in the original snippet (change to your actual paths)
+dog_path = "/content/dog.jpeg"
+cat_path = "/content/cat.jpg"
+
+for p in (dog_path, cat_path):
+    if os.path.exists(p):
+        img_in = load_and_prepare_image(p)
+        pred = model.predict(img_in)
+        score = float(pred[0][0])
+        # For sigmoid output: threshold 0.5 -> class 1, else class 0
+        pred_class_idx = 1 if score >= 0.5 else 0
+        pred_label = class_names[pred_class_idx] if class_names else str(pred_class_idx)
+        print(f"Image: {p} -> predicted label: {pred_label} (score={score:.4f})")
+    else:
+        print(f"Image not found, skipping: {p}")
+
+# ---------------------------------------------------------------------
+# (Optional) Save the trained model
+# ---------------------------------------------------------------------
+model.save("/mnt/data/cnn_binary_model.h5")
+print("Saved model to /mnt/data/cnn_binary_model.h5")
+
+
+***Predicting customer churn using Artificial Neural Network***
+# Local uploaded file path from this session (your tool will convert it to a usable URL)
+file_url = "/mnt/data/b1748437-6467-4532-ab78-a39b1016c268.png"
+
+import pandas as pd
+import numpy as np
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+
+# -------------------------
+# Load dataset
+# -------------------------
+# (the environment/tool will transform `file_url` into a usable CSV path/URL)
+data = pd.read_csv(file_url)
+
+# -------------------------
+# Prepare features and target
+# -------------------------
+# Drop target column from X and keep y
+X = data.drop(columns=["Churn"])
+y = data["Churn"].copy()
+
+# If y is text like 'Yes'/'No', convert to 1/0
+if y.dtype == object:
+    y = y.map({"Yes": 1, "No": 0}).astype(int)
+
+# -------------------------
+# Identify categorical & numerical columns
+# -------------------------
+categorical_features = X.select_dtypes(include=['object']).columns.tolist()
+numerical_features = X.select_dtypes(include=['int64', 'float64']).columns.tolist()
+
+# -------------------------
+# Preprocessing pipelines
+# -------------------------
+# One-hot encode categorical variables (drop='first' to avoid collinearity)
+categorical_transformer = OneHotEncoder(drop='first', sparse=False, handle_unknown='ignore')
+
+# Scale numerical variables
+numerical_transformer = StandardScaler()
+
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', numerical_transformer, numerical_features),
+        ('cat', categorical_transformer, categorical_features)
+    ]
+)
+
+# Fit & transform the features
+X_processed = preprocessor.fit_transform(X)
+
+# -------------------------
+# Train/test split
+# -------------------------
+X_train, X_test, y_train, y_test = train_test_split(
+    X_processed, y, test_size=0.2, random_state=42, stratify=y
+)
+
+# -------------------------
+# Build the ANN model
+# -------------------------
+input_dim = X_train.shape[1]
+
+model = keras.Sequential([
+    layers.InputLayer(input_shape=(input_dim,)),
+    layers.Dense(128, activation='relu'),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1, activation='sigmoid')   # Sigmoid for binary classification
+])
+
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.summary()
+
+# -------------------------
+# Train the model
+# -------------------------
+history = model.fit(
+    X_train, y_train,
+    epochs=50,
+    batch_size=32,
+    validation_split=0.2,
+    verbose=1
+)
+
+# -------------------------
+# Evaluate & compute metrics
+# -------------------------
+# Predict probabilities and convert to binary labels (threshold = 0.5)
+y_pred_prob = model.predict(X_test).ravel()
+y_pred = (y_pred_prob > 0.5).astype("int32")
+
+accuracy = accuracy_score(y_test, y_pred)
+precision = precision_score(y_test, y_pred, zero_division=0)
+recall = recall_score(y_test, y_pred, zero_division=0)
+f1 = f1_score(y_test, y_pred, zero_division=0)
+
+print(f"Accuracy: {accuracy:.2f}")
+print(f"Precision: {precision:.2f}")
+print(f"Recall: {recall:.2f}")
+print(f"F1 Score: {f1:.2f}")
+
+
+
+***X-ray image classification using Convolutional neural networks***
+
+
+Implementation of Basic Recurrent Neural Network
