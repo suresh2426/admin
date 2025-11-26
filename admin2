@@ -1,0 +1,125 @@
+# Install required packages (run once)
+pip install scikit-learn lime pandas numpy matplotlib
+
+# lime_example.py
+"""
+Full example: Train a scikit-learn classifier on Iris and explain predictions with LIME (tabular).
+Saves explanation to HTML and shows how to get the feature importances for a single instance.
+"""
+
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_iris
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score, classification_report
+import matplotlib.pyplot as plt
+import os
+
+# LIME imports
+from lime.lime_tabular import LimeTabularExplainer
+
+def train_model(X_train, y_train, random_state=42):
+    """
+    Train a simple pipeline with scaling + RandomForest.
+    Returns the fitted pipeline.
+    """
+    pipeline = make_pipeline(
+        StandardScaler(),
+        RandomForestClassifier(n_estimators=100, random_state=random_state)
+    )
+    pipeline.fit(X_train, y_train)
+    return pipeline
+
+def main():
+    # 1) Load data
+    iris = load_iris()
+    X = iris.data
+    y = iris.target
+    feature_names = iris.feature_names
+    class_names = iris.target_names.tolist()
+
+    # Convert to DataFrame (nice for printing / saving)
+    df = pd.DataFrame(X, columns=feature_names)
+    df["target"] = y
+
+    # 2) Train/test split
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.25, random_state=0, stratify=y
+    )
+
+    # 3) Train model
+    model = train_model(X_train, y_train)
+
+    # 4) Evaluate
+    y_pred = model.predict(X_test)
+    acc = accuracy_score(y_test, y_pred)
+    print(f"Test accuracy: {acc:.4f}")
+    print(classification_report(y_test, y_pred, target_names=class_names))
+
+    # 5) Create LIME explainer
+    # LIME wants the raw training data (unscaled) and information about discrete features/classes.
+    # We will pass feature_names and class_names; set mode='classification'.
+    explainer = LimeTabularExplainer(
+        training_data=X_train,
+        feature_names=feature_names,
+        class_names=class_names,
+        mode="classification",
+        discretize_continuous=True,  # often helpful
+        random_state=0
+    )
+
+    # 6) Choose an instance to explain (index into X_test)
+    idx = 5  # change to any index you want from X_test
+    instance = X_test[idx].reshape(1, -1)
+
+    # LIME expects a prediction function that returns probabilities.
+    # Our model is a sklearn pipeline, so predict_proba is available.
+    predict_fn = model.predict_proba
+
+    # 7) Explain the instance
+    explanation = explainer.explain_instance(
+        data_row=instance.flatten(),
+        predict_fn=predict_fn,
+        num_features=4,      # number of features to show in explanation
+        top_labels=3         # how many labels to compute explanations for
+    )
+
+    # 8) Print the explanation for the predicted label
+    predicted_label = model.predict(instance)[0]
+    print(f"Predicted label index: {predicted_label}, name: {class_names[predicted_label]}")
+    print("LIME explanation (feature contributions) for predicted class:")
+    for feat, weight in explanation.as_list(label=predicted_label):
+        print(f"  {feat} -> {weight:.4f}")
+
+    # 9) Save explanation as HTML
+    output_dir = "lime_outputs"
+    os.makedirs(output_dir, exist_ok=True)
+    html_path = os.path.join(output_dir, f"lime_explanation_instance_{idx}.html")
+    explanation.save_to_file(html_path)
+    print(f"Saved LIME explanation HTML to: {html_path}")
+
+    # 10) Optional: show a quick bar chart of the explanation weights for the predicted label
+    # Convert explanation for the chosen label to a DataFrame for plotting.
+    exp_list = explanation.as_list(label=predicted_label)
+    feats = [x[0] for x in exp_list]
+    weights = [x[1] for x in exp_list]
+
+    fig, ax = plt.subplots(figsize=(7, 3.5))
+    y_pos = np.arange(len(feats))
+    ax.barh(y_pos, weights)
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(feats)
+    ax.invert_yaxis()
+    ax.set_xlabel("LIME weight (positive -> supports predicted class)")
+    ax.set_title(f"LIME explanation for instance {idx} -> {class_names[predicted_label]}")
+    plt.tight_layout()
+    plot_path = os.path.join(output_dir, f"lime_bar_instance_{idx}.png")
+    plt.savefig(plot_path)
+    print(f"Saved LIME bar chart to: {plot_path}")
+    plt.show()
+
+if __name__ == "__main__":
+    main()
