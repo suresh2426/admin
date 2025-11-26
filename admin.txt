@@ -178,6 +178,286 @@ table
 df = pd.read_html(str(table))
 df[0]
 
+***more webscrape***
+!pip install bs4
+from bs4 import BeautifulSoup
+html_code = """
+  </head>
+  <body>
+  <header>
+    <h1>Welcome to My Sample Page </h1>
+  </header>
+  <main>
+    <p>This is a basic webpage created with HTML. You can add more content and style it with CSS. </p>
+    <p>Check out this <a href="https://www.example.com" target="_blank">Link</a> to visit an external website</p>
+  </main>
+</body>
+</html>
+"""
+html_content = BeautifulSoup(html_code, 'html.parser')
+html_content.text
+
+from bs4 import BeautifulSoup
+html_code = """
+</head>
+<body>
+  <header>
+    <h1>Welcome to My Sample Page </h1>
+  </header>
+  <div> this is div1 </div>
+  <div> this is div2 </div>
+  <p> This is first para </p>
+  <p>This is a basic webpage created with HTML. You can add more content and style it with CSS. </p>
+  <p>Check out this <a href="https://www.example.com" target="_blank">Link</a> to visit an external website</p>
+  <a href="https://www.google.com" target="_blank">Click here</a>
+  <p>This is last para</p>
+  <span id="product">Samsung s24</span>
+  <span class="samsung">Samsung s24</span>
+  <span class="samsung">Samsung s24</span>
+  <span class="samsung">Samsung s9 fe</span>
+</body>
+</html>
+"""
+html_content = BeautifulSoup(html_code, 'html.parser')
+type(html_content)
+html_content.text
+html_content.find("p").text   #finds the first tag appearance
+all_paras = html_content.find_all("p")   #gives all para
+for p in all_paras:
+  print(p.get_text())
+html_content.find("a")
+html_content.find('a')["href"]
+html_content.find('span',{'id':'product'}) #find tag by id
+# html_content.find_all('span',{'class':'samsung'})
+# html_content.find_all('span', class_='samsung')
+html_content.select('span.samsung')
+# to select only 1st
+html_content.select_one('span.samsung')
+
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+all_quotes = []
+all_authors = []
+all_tags = []
+url = "https://quotes.toscrape.com/"
+# url ="https://www.amazon.in/s?bbn=81107432031&rh=n%3A81107432031%2Cp_85%3A10440599031&_encoding=UTF8&content-id=amzn1.sym.58c90a12-100b-4a2f-8e15-7c06f1abe2be&pd_rd_r=e20b3f9a-cf23-43c9-9e60-57cb9ff8ae3a&pd_rd_w=Bh4O7&pd_rd_wg=KUr0O&pf_rd_p=58c90a12-100b-4a2f-8e15-7c06f1abe2be&pf_rd_r=TWFY6TGT2J08H42WP3AF&ref=pd_hp_d_atf_unk"
+# url = "https://www.somaiya.edu/en/"
+
+# url = "https://www.amazon.in/s?bbn=81107432031&rh=n%3A81107432031%2Cp_85%3A10440599031&_encoding=UTF8&content-id=amzn1.sym.58c90a12-100b-4a2f-8e15-7c06f1abe2be&pd_rd_r=e20b3f9a-cf23-43c9-9e60-57cb9ff8ae3a&pd_rd_w=Bh4O7&pd_rd_wg=KUr0O&pf_rd_p=58c90a12-100b-4a2f-8e15-7c06f1abe2be&pf_rd_r=TWFY6TGT2J08H42WP3AF&ref=pd_hp_d_atf_unk"
+header = {
+    "User-Agent" : "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"
+}
+response = requests.get(url, headers=header)
+response
+html_content = BeautifulSoup(response.content, 'html.parser')
+html_content
+all_spans = html_content.select("span.text")
+all_authors_spans = html_content.select("small.author")
+for span in all_spans:
+  all_quotes.append(span.text)
+for span in all_authors_spans:
+  all_authors.append(span.text)
+quotes_dataset = pd.DataFrame({
+    "Quotes" : all_quotes,
+    "Authors" : all_authors
+})
+quotes_dataset
+
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+all_quotes = []
+all_authors = []
+all_tags = []
+url = "https://quotes.toscrape.com/"
+header = {
+    "User-Agent" : "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"
+}
+response = requests.get(url, headers=header)
+response
+html_content = BeautifulSoup(response.content, 'html.parser')
+html_content
+all_spans = html_content.select("span.text")
+all_authors_spans = html_content.select("small.author")
+all_div_tags = html_content.select("div.tags")
+all_div_tags
+for div in all_div_tags:
+  tag_list = " , ".join([a.get_text() for a in div.select("a.tag")])
+  all_tags.append(tag_list)
+all_tags
+for span in all_spans:
+  all_quotes.append(span.text)
+for span in all_authors_spans:
+  all_authors.append(span.text)
+quotes_dataset = pd.DataFrame({
+    "Quotes" : all_quotes,
+    "Authors" : all_authors,
+    "Tags" : all_tags
+})
+quotes_dataset
+
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+all_quotes = []
+all_authors = []
+all_tags = []
+header = {
+    "User-Agent" : "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"
+}
+for i in range(1,7):
+  url = f"https://quotes.toscrape.com/page/{i}/"
+  response = requests.get(url, headers=header)
+  response
+  html_content = BeautifulSoup(response.content, 'html.parser')
+  html_content
+  all_spans = html_content.select("span.text")
+  all_authors_spans = html_content.select("small.author")
+  all_div_tags = html_content.select("div.tags")
+  all_div_tags
+  for div in all_div_tags:
+    tag_list = " , ".join([a.get_text() for a in div.select("a.tag")])
+    all_tags.append(tag_list)
+  all_tags
+  for span in all_spans:
+    all_quotes.append(span.text)
+  for span in all_authors_spans:
+    all_authors.append(span.text)
+  quotes_dataset = pd.DataFrame({
+      "Quotes" : all_quotes,
+      "Authors" : all_authors,
+      "Tags" : all_tags
+  })
+quotes_dataset
+
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+all_quotes = []
+all_authors = []
+all_tags = []
+header = {
+    "User-Agent" : "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"
+}
+def scrap_pages(start_page, end_page):
+  for i in range(start_page, end_page):
+    url = f"https://quotes.toscrape.com/page/{i}/"
+    response = requests.get(url, headers=header)
+    response
+    html_content = BeautifulSoup(response.content, 'html.parser')
+    html_content
+    all_spans = html_content.select("span.text")
+    all_authors_spans = html_content.select("small.author")
+    all_div_tags = html_content.select("div.tags")
+    all_div_tags
+    for div in all_div_tags:
+      tag_list = " , ".join([a.get_text() for a in div.select("a.tag")])
+      all_tags.append(tag_list)
+    all_tags
+    for span in all_spans:
+      all_quotes.append(span.text)
+    for span in all_authors_spans:
+      all_authors.append(span.text)
+    quotes_dataset = pd.DataFrame({
+        "Quotes" : all_quotes,
+        "Authors" : all_authors,
+        "Tags" : all_tags
+    })
+  return quotes_dataset
+start = int(input("Enter start page: "))
+end = int(input("Enter end page: "))
+scrap_pages(start,end)
+
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+all_titles = []
+all_rates = []
+all_movie_desc = []
+header = {
+    "User-Agent" : "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+}
+url = f"https://www.loksatta.com/maharashtra/"
+response = requests.get(url, headers=header)
+response
+html_content = BeautifulSoup(response.content, 'html.parser')
+html_content
+# all_desc = html_content.find_all("p", class_="article_excerpt")
+# all_desc
+def scrap_pages(start_page, end_page):
+    all_titles = []
+    all_dates = []
+    all_article_desc = []
+    for i in range(start_page, end_page + 1):
+      url = f"https://www.loksatta.com/maharashtra/page/{i}/"
+      response = requests.get(url, headers=header)
+      html_content = BeautifulSoup(response.content, 'html.parser')
+      all_title_names = html_content.select("a.article_title")
+      all_dates_given = html_content.select("span.article_date")
+      all_desc = html_content.select("p.article_excerpt")
+      for title in all_title_names:
+          all_titles.append(title.text.strip())
+      for date in all_dates_given:
+          all_dates.append(date.text.strip())
+      for desc in all_desc:
+          all_article_desc.append(desc.text.strip())
+      # for desc in all_desc:
+      #     desc_list = " , ".join([d.get_text().strip() for d in desc.select("p")])
+      #     all_article_desc.append(desc_list)
+    quotes_dataset = pd.DataFrame({
+        "Title": pd.Series(all_titles),
+        "Date": pd.Series(all_dates),
+        "Description": pd.Series(all_article_desc)
+    })
+    return quotes_dataset
+start = int(input("Enter start page: "))
+end = int(input("Enter end page: "))
+scrap_pages(start,end)
+
+***Whatsapp Scraping***
+# reading file
+with open("/content/WhatsApp Chat with Family katta.txt","r",encoding="utf-8") as file:
+  data = file.readlines()
+data
+
+import re
+import string
+import pandas as pd
+timestamps = []
+messages = []
+senders = []
+# here / , is literal string
+# date : (\d{1,2}/\d{1,2}/\d{2})
+# {} range
+# [either or]
+# matches only for single line
+pattern = r"^(\d{2}/\d{2}/\d{2}), (\d{2}:\d{2}) - ([^:]+): (.*)"
+for chat in data:
+  chat = chat.strip()
+  # print(chat)
+  match = re.match(pattern,chat)
+  if match:
+    date, time,sender, message = match.groups()
+    # print("timestamp: " + date + "\ntime: "+time + "\nsender: " + sender + "\nmessage: " + message)
+    timestamps.append(f"{date} {time}")
+    senders.append(sender)
+    messages.append(message)
+  else:
+    if messages:
+      messages[-1] += " " + chat;
+    # print("not matches")
+df = pd.DataFrame({
+    "timestamps" : timestamps,
+    "senders" : senders,
+    "messages" : messages
+});
+df.tail(10)
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+df["senders"].value_counts().plot(kind="bar")
+
 ***speech to text***
 !pip install SpeechRecognition
 !pip install pydub
