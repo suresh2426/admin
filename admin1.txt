@@ -1,2333 +1,924 @@
-=============================================================================
-ANN (Artificial Neural Network) - GENERIC TEMPLATE
-=============================================================================
-Use Case: Binary/Multi-class Classification, Regression
-Works with: ANY tabular/CSV dataset
-=============================================================================
-
-============================================================================
-STEP 1: IMPORT LIBRARIES
-============================================================================
-import pandas as pd
-import numpy as np
-from keras.models import Sequential
-from keras.layers import Dense
-from keras.optimizers import Adam, SGD
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.metrics import accuracy_score, confusion_matrix
-import matplotlib.pyplot as plt
-
-============================================================================
-STEP 2: LOAD AND EXPLORE DATASET
-============================================================================
-# Load data (choose one method)
-# Method 1: From CSV file
-df = pd.read_csv('your_dataset.csv')
-
-# Method 2: From URL
-# url = 'https://example.com/dataset.csv'
-# df = pd.read_csv(url)
-
-# Method 3: From Excel
-# df = pd.read_excel('your_dataset.xlsx')
-
-# Explore the data
-print("First 5 rows:")
-print(df.head())
-print("\nDataset shape:", df.shape)
-print("\nData types and info:")
-print(df.info())
-print("\nMissing values:")
-print(df.isna().sum())
-print("\nDuplicate rows:", df.duplicated().sum())
-print("\nBasic statistics:")
-print(df.describe())
-
-============================================================================
-STEP 3: PREPARE DATA (X and y)
-============================================================================
-# Method 1: Drop target column (if you know column name)
-X = df.drop('target_column_name', axis=1)  # Replace with your target column
-y = df['target_column_name']
-
-# Method 2: By column position (if target is last column)
-# X = df.iloc[:, :-1]  # All columns except last
-# y = df.iloc[:, -1]   # Last column
-
-# Method 3: By column index range
-# X = df.iloc[:, 0:8]  # Columns 0-7 (8 features)
-# y = df.iloc[:, 8]    # Column 8 (target)
-
-# Method 4: Select specific columns
-# X = df[['feature1', 'feature2', 'feature3']]
-# y = df['target']
-
-print(f"Features shape: {X.shape}")
-print(f"Target shape: {y.shape}")
-print(f"Number of features: {X.shape[1]}")
-print(f"Number of samples: {X.shape[0]}")
-
-============================================================================
-STEP 4: ENCODING (If needed for categorical data)
-============================================================================
-# Check unique values in target
-print("\nTarget unique values:", y.unique())
-print("Target value counts:")
-print(y.value_counts())
-
-# Option 1: Encode target variable (if categorical)
-from sklearn.preprocessing import LabelEncoder
-le = LabelEncoder()
-y_encoded = le.fit_transform(y)
-print(f"\nOriginal classes: {le.classes_}")
-print(f"Encoded range: {y_encoded.min()} to {y_encoded.max()}")
-
-# Use y_encoded for further steps if you encoded
-y = y_encoded
-
-# Option 2: One-hot encode target (for categorical_crossentropy loss)
-# from keras.utils import to_categorical
-# y = to_categorical(y)
-
-# Option 3: Encode categorical features
-# X = pd.get_dummies(X, drop_first=True)
-
-# Option 4: Manual encoding for specific columns
-# X['column_name'] = X['column_name'].map({'cat1': 0, 'cat2': 1})
-
-============================================================================
-STEP 5: STANDARDIZATION (Feature Scaling)
-============================================================================
-from sklearn.preprocessing import StandardScaler
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
-
-# Alternative: Min-Max Scaling (0-1 range)
-# from sklearn.preprocessing import MinMaxScaler
-# scaler = MinMaxScaler()
-# X_scaled = scaler.fit_transform(X)
-
-print(f"\nScaled data shape: {X_scaled.shape}")
-print(f"Scaled data range: [{X_scaled.min():.2f}, {X_scaled.max():.2f}]")
-
-============================================================================
-STEP 6: TRAIN-TEST SPLIT
-============================================================================
-from sklearn.model_selection import train_test_split
-
-# Common split ratios: 0.2 (80-20), 0.3 (70-30), 0.25 (75-25)
-TEST_SIZE = 0.3  # Adjust as needed
-RANDOM_STATE = 42  # For reproducibility
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X_scaled, y, test_size=TEST_SIZE, random_state=RANDOM_STATE
-)
-
-print(f"\nTraining samples: {X_train.shape[0]}")
-print(f"Testing samples: {X_test.shape[0]}")
-print(f"Features: {X_train.shape[1]}")
-
-============================================================================
-STEP 7: BUILD ANN MODEL
-============================================================================
-# Determine number of features and classes
-num_features = X_train.shape[1]
-num_classes = len(np.unique(y))  # For classification
-
-print(f"\nBuilding model with {num_features} input features")
-print(f"Number of classes: {num_classes}")
-
-model = Sequential()
-
-# Input layer + First hidden layer
-# Neurons typically: 64, 128, 256 (powers of 2)
-model.add(Dense(64, activation='relu', input_shape=(num_features,)))
-
-# Hidden layers (decrease neurons each layer)
-model.add(Dense(32, activation='relu'))
-model.add(Dense(16, activation='relu'))
-
-# Optional: Add Dropout to prevent overfitting
-# from keras.layers import Dropout
-# model.add(Dropout(0.2))  # Drop 20% of neurons
-
-# Output layer - CHOOSE ONE based on your task:
-
-# For BINARY classification (2 classes):
-model.add(Dense(1, activation='sigmoid'))
-
-# For MULTI-CLASS classification (3+ classes):
-# model.add(Dense(num_classes, activation='softmax'))
-# OR
-# model.add(Dense(num_classes, activation='sigmoid'))
-
-# For REGRESSION (predicting continuous values):
-# model.add(Dense(1, activation='linear'))
-
-# View model architecture
-model.summary()
-
-============================================================================
-STEP 8: COMPILE MODEL
-============================================================================
-# Choose optimizer and loss based on your task
-
-# OPTIMIZER OPTIONS:
-# 1. Adam (most common, adaptive learning rate)
-from keras.optimizers import Adam
-optimizer = Adam(learning_rate=0.01)  # Try: 0.001, 0.01, 0.1
-
-# 2. SGD (Stochastic Gradient Descent)
-# from tensorflow.keras.optimizers import SGD
-# optimizer = SGD(learning_rate=0.01, momentum=0.9)
-
-# 3. Simple string (uses defaults)
-# optimizer = 'adam'
-
-# LOSS FUNCTION - CHOOSE ONE:
-# Binary classification (2 classes):
-loss = 'binary_crossentropy'
-
-# Multi-class (integer labels like 0,1,2):
-# loss = 'sparse_categorical_crossentropy'
-
-# Multi-class (one-hot encoded labels):
-# loss = 'categorical_crossentropy'
-
-# Regression:
-# loss = 'mse'  # or 'mae', 'huber'
-
-# METRICS:
-metrics = ['accuracy']  # For classification
-# metrics = ['mae']  # For regression
-
-model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
-
-print(f"\nModel compiled with:")
-print(f"  Optimizer: {optimizer if isinstance(optimizer, str) else type(optimizer).__name__}")
-print(f"  Loss: {loss}")
-print(f"  Metrics: {metrics}")
-
-============================================================================
-STEP 9: TRAIN THE MODEL
-============================================================================
-history = model.fit(
-    X_train, y_train,
-    epochs=100,
-    batch_size=10,
-    verbose=1
-)
-
-# With validation split
-history = model.fit(
-    X_train, y_train,
-    validation_split=0.2,
-    epochs=100,
-    batch_size=10,
-    verbose=1
-)
-
-============================================================================
-STEP 10: EVALUATE THE MODEL
-============================================================================
-loss, accuracy = model.evaluate(X_test, y_test)
-print("\nLoss: %.2f, and Accuracy : %.2f%%" % (loss, accuracy*100))
-
-============================================================================
-STEP 11: MAKE PREDICTIONS
-============================================================================
-# Get predictions (probabilities)
-predictions = model.predict(X_test)
-
-# Convert to class labels
-if predictions.shape[1] == 1 or len(predictions.shape) == 1:
-    # Binary classification
-    y_pred = (predictions > 0.5).astype(int).flatten()
-else:
-    # Multi-class classification  
-    y_pred = np.argmax(predictions, axis=1)
-
-print("\nSample Predictions (first 10):")
-for i in range(min(10, len(y_pred))):
-    correct = "✓" if y_pred[i] == y_test[i] else "✗"
-    print(f"{correct} Predicted: {y_pred[i]}, Actual: {y_test[i]}")
-
-# Calculate accuracy manually
-accuracy_manual = np.mean(y_pred == y_test)
-print(f"\nManual Accuracy: {accuracy_manual:.4f} ({accuracy_manual*100:.2f}%)")
-
-============================================================================
-STEP 12: VISUALIZATIONS
-============================================================================
-
-# Plot 1: Training History (Accuracy and Loss)
-plt.figure(figsize=(12, 4))
-
-# Accuracy subplot
-plt.subplot(1, 2, 1)
-plt.plot(history.history['accuracy'], label='Training Accuracy', linewidth=2)
-if 'val_accuracy' in history.history:
-    plt.plot(history.history['val_accuracy'], label='Validation Accuracy', linewidth=2)
-plt.xlabel('Epoch', fontsize=12)
-plt.ylabel('Accuracy', fontsize=12)
-plt.title('Model Accuracy Over Epochs', fontsize=14)
-plt.legend()
-plt.grid(True, alpha=0.3)
-
-# Loss subplot
-plt.subplot(1, 2, 2)
-plt.plot(history.history['loss'], label='Training Loss', linewidth=2)
-if 'val_loss' in history.history:
-    plt.plot(history.history['val_loss'], label='Validation Loss', linewidth=2)
-plt.xlabel('Epoch', fontsize=12)
-plt.ylabel('Loss', fontsize=12)
-plt.title('Model Loss Over Epochs', fontsize=14)
-plt.legend()
-plt.grid(True, alpha=0.3)
-
-plt.tight_layout()
-plt.show()
-
-# Plot 2: Confusion Matrix
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-import seaborn as sns
-
-cm = confusion_matrix(y_test, y_pred)
-print("\nConfusion Matrix:")
-print(cm)
-
-plt.figure(figsize=(8, 6))
-sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=True)
-plt.xlabel('Predicted Label', fontsize=12)
-plt.ylabel('True Label', fontsize=12)
-plt.title('Confusion Matrix', fontsize=14)
-plt.tight_layout()
-plt.show()
-
-# Plot 3: Classification Report
-from sklearn.metrics import classification_report
-print("\nClassification Report:")
-print(classification_report(y_test, y_pred))
-
-============================================================================
-STEP 13: SAVE AND LOAD MODEL (Optional)
-============================================================================
-# Save the trained model
-model.save('my_ann_model.keras')  # New format (recommended)
-print("\nModel saved!")
-
-# Save the scaler (IMPORTANT)
-import joblib
-joblib.dump(scaler, 'scaler.pkl')
-print("Scaler saved!")
-
-# Load later:
-# from keras.models import load_model
-# loaded_model = load_model('my_ann_model.keras')
-# loaded_scaler = joblib.load('scaler.pkl')
-
-# Make predictions:
-# scaled_new_data = loaded_scaler.transform(new_data)
-# predictions = loaded_model.predict(scaled_new_data)
-
-============================================================================
-QUICK REFERENCE GUIDE
-============================================================================
-
-📌 WHEN TO USE ANN:
-   - Tabular/CSV data (structured data)
-   - Classification: Binary or Multi-class
-   - Regression: Predicting continuous values
-   - NOT for images (use CNN) or text sequences (use RNN)
-
-📌 COMPLETE WORKFLOW:
-   1. Load data → 2. Explore → 3. Prepare X,y → 4. Encode (if needed)
-   5. Scale → 6. Split → 7. Build model → 8. Compile → 9. Train
-   10. Evaluate → 11. Predict → 12. Visualize
-
-📌 ACTIVATION FUNCTIONS:
-   - Hidden layers: 'relu' (most common), 'tanh', 'elu'
-   - Binary output: 'sigmoid'
-   - Multi-class output: 'softmax' (recommended), 'sigmoid'
-   - Regression output: 'linear' or None
-
-📌 LOSS FUNCTIONS:
-   Binary: 'binary_crossentropy'
-   Multi-class (integer labels): 'sparse_categorical_crossentropy'
-   Multi-class (one-hot): 'categorical_crossentropy'
-   Regression: 'mse', 'mae', 'huber'
-
-📌 OPTIMIZERS & LEARNING RATES:
-   Adam(learning_rate=0.001)  # Default, good starting point
-   Adam(learning_rate=0.01)   # Faster learning
-   SGD(learning_rate=0.01, momentum=0.9)
-   SGD(learning_rate=0.001, momentum=0.9)
-   Common LR values: 0.1, 0.01, 0.001, 0.0001
-
-📌 TYPICAL ARCHITECTURE:
-   Input(num_features) → Dense(64, relu) → Dense(32, relu) → 
-   Dense(16, relu) → Output(num_classes, activation)
-   
-   Pattern: Decrease neurons by half each layer
-   Common neurons: 512, 256, 128, 64, 32, 16, 8
-
-📌 HYPERPARAMETERS TO ADJUST:
-   Epochs: 50, 100, 200, 300, 500
-   Batch size: 10, 16, 32, 64, 128
-   Test size: 0.2 (80-20), 0.3 (70-30), 0.25 (75-25)
-   Validation split: 0.2 (20% of training data)
-
-📌 PREPROCESSING CHECKLIST:
-   ✓ Check for missing values (df.isna().sum())
-   ✓ Check for duplicates (df.duplicated().sum())
-   ✓ Encode categorical target (LabelEncoder)
-   ✓ Encode categorical features (get_dummies or LabelEncoder)
-   ✓ Scale features (StandardScaler or MinMaxScaler)
-   ✓ Split data (train_test_split)
-
-📌 COMMON ISSUES & SOLUTIONS:
-   Problem: Low accuracy
-   - Add more layers/neurons
-   - Train for more epochs
-   - Try different learning rate
-   - Check if data is properly scaled
-   
-   Problem: Overfitting (train acc >> test acc)
-   - Add Dropout layers
-   - Reduce model complexity
-   - Get more training data
-   - Use regularization (L1, L2)
-   
-   Problem: Underfitting (both low)
-   - Add more layers/neurons
-   - Train longer
-   - Reduce regularization
-
-📌 EVALUATION METRICS:
-   Classification: accuracy, precision, recall, F1-score
-   Regression: MSE, MAE, R² score
-   Use confusion matrix for classification
-
-📌 IMPORTANT NOTES:
-   - Always scale your data before training!
-   - Save the scaler with the model
-   - Use same scaler for new predictions
-   - validation_split uses % of training data
-   - Set random_state for reproducibility
-   - Monitor both training and validation metrics
-
-📌 PREDICTION ON NEW DATA:
-   1. Load model and scaler
-   2. Scale new data using saved scaler
-   3. Predict using loaded model
-   4. Convert probabilities to classes if needed
-   - Classification: accuracy, loss
-   - Confusion matrix for detailed analysis
-
-📌 PREPROCESSING STEPS:
-   1. Check shape, info, null values, duplicates
-   2. Separate X and y
-   3. Encode categorical variables (LabelEncoder)
-   4. Scale features (StandardScaler)
-   5. Train-test split (test_size=0.2 or 0.3)
-
-📌 YOUR CODING PATTERN:
-   model = Sequential()
-   model.add(Dense(neurons, activation='relu', input_shape=(features,)))
-   model.add(Dense(neurons, activation='relu'))
-   model.add(Dense(output_neurons, activation='sigmoid/softmax/linear'))
-   
-   model.compile(optimizer=optimizer, loss='loss_function', metrics=['accuracy'])
-   model.fit(X_train, y_train, epochs=100, batch_size=10)
-   
-   loss, accuracy = model.evaluate(X_test, y_test)
-   print("\nLoss: %.2f, and Accuracy : %.2f%%" % (loss, accuracy*100))
-
-
-
-=============================================================================
-CNN (Convolutional Neural Network) - GENERIC TEMPLATE
-=============================================================================
-Use Case: Image Classification with Spatial Feature Extraction
-Works with: ANY image dataset
-=============================================================================
-
-============================================================================
-STEP 1: IMPORT LIBRARIES
-============================================================================
-import tensorflow as tf
-import numpy as np
-import matplotlib.pyplot as plt
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Dropout, Flatten, Dense
-from tensorflow.keras.utils import to_categorical
-from keras.callbacks import ModelCheckpoint
-
-============================================================================
-STEP 2: LOAD DATASET
-============================================================================
-# Option 1: Load from Keras built-in datasets
-(x_train, y_train), (x_test, y_test) = tf.keras.datasets.fashion_mnist.load_data()
-# Other options: mnist, cifar10, cifar100
-
-# Option 2: Load from directory
-# from keras.preprocessing.image import ImageDataGenerator
-# datagen = ImageDataGenerator(rescale=1./255, validation_split=0.2)
-# train_data = datagen.flow_from_directory('path/to/train', target_size=(height, width))
-
-# Option 3: Load custom numpy arrays
-# x_train = np.load('train_images.npy')
-# y_train = np.load('train_labels.npy')
-# x_test = np.load('test_images.npy')
-# y_test = np.load('test_labels.npy')
-
-print("x_train shape:", x_train.shape, "y_train shape:", y_train.shape)
-print(x_train.shape[0], 'train samples')
-print(x_test.shape[0], 'test samples')
-print(f"Image dimensions: {x_train.shape[1]}x{x_train.shape[2]}")
-if len(x_train.shape) == 4:
-    print(f"Channels: {x_train.shape[3]}")
-
-============================================================================
-STEP 3: DEFINE CLASS LABELS
-============================================================================
-# Option 1: Manually define your class names
-class_labels = ['Class_0', 'Class_1', 'Class_2']  # Replace with your classes
-
-# Option 2: Auto-generate based on number of classes
-num_classes = len(np.unique(y_train))
-class_labels = [f'Class_{i}' for i in range(num_classes)]
-
-# Option 3: For specific datasets (examples)
-# Fashion MNIST:
-# class_labels = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',
-#                 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
-
-# CIFAR-10:
-# class_labels = ['airplane', 'automobile', 'bird', 'cat', 'deer',
-#                 'dog', 'frog', 'horse', 'ship', 'truck']
-
-print(f"Number of classes: {len(class_labels)}")
-print(f"Class labels: {class_labels}")
-
-============================================================================
-STEP 4: VISUALIZE SAMPLE IMAGE
-============================================================================
-img_index = 0  # Change to any index
-label_index = y_train[img_index]
-print(f"Sample {img_index}: y = {label_index} ({class_labels[label_index]})")
-
-plt.figure(figsize=(6, 6))
-plt.imshow(x_train[img_index], cmap='gray')  # Use cmap='gray' for grayscale
-plt.colorbar()
-plt.title(f'Label: {class_labels[label_index]}')
-plt.grid(False)
-plt.show()
-
-============================================================================
-STEP 5: DATA NORMALIZATION
-============================================================================
-print(f"Original data range: [{x_train.min()}, {x_train.max()}]")
-
-# Normalize to 0-1 range if needed
-if x_train.max() > 1:
-    print("Normalizing data...")
-    x_train = x_train.astype('float32') / 255.0
-    x_test = x_test.astype('float32') / 255.0
-else:
-    print("Data already normalized")
-    x_train = x_train.astype('float32')
-    x_test = x_test.astype('float32')
-
-print(f"Normalized data range: [{x_train.min():.2f}, {x_train.max():.2f}]")
-print(f"Number of train samples: {len(x_train)}")
-print(f"Number of test samples: {len(x_test)}")
-
-============================================================================
-STEP 6: SPLIT TRAIN/VALIDATION SETS (Optional)
-============================================================================
-# Option 1: Manual split
-VALIDATION_SIZE = 5000  # Adjust based on dataset size
-
-(x_train, x_valid) = x_train[VALIDATION_SIZE:], x_train[:VALIDATION_SIZE]
-(y_train, y_valid) = y_train[VALIDATION_SIZE:], y_train[:VALIDATION_SIZE]
-
-print(f"Training samples: {len(x_train)}")
-print(f"Validation samples: {len(x_valid)}")
-print(f"Test samples: {len(x_test)}")
-
-# Option 2: Use validation_split in model.fit() instead (skip this step)
-# validation_split=0.2 will automatically use 20% of training data
-
-============================================================================
-STEP 7: RESHAPE DATA FOR CNN
-============================================================================
-# CNNs need shape: (samples, height, width, channels)
-# Grayscale images: channels = 1
-# RGB images: channels = 3
-
-# Check current shape
-print(f"Current x_train shape: {x_train.shape}")
-
-# Reshape if needed (for grayscale images)
-if len(x_train.shape) == 3:
-    # Add channel dimension
-    w, h = x_train.shape[1], x_train.shape[2]
-    x_train = x_train.reshape(x_train.shape[0], w, h, 1)
-    x_valid = x_valid.reshape(x_valid.shape[0], w, h, 1)
-    x_test = x_test.reshape(x_test.shape[0], w, h, 1)
-    print(f"Reshaped to: {x_train.shape}")
-else:
-    print("Data already has channel dimension")
-
-# For RGB images (already have 3 channels), no reshaping needed
-img_height, img_width, img_channels = x_train.shape[1], x_train.shape[2], x_train.shape[3]
-
-============================================================================
-STEP 8: ONE-HOT ENCODE LABELS
-============================================================================
-# Check unique labels
-num_classes = len(np.unique(y_train))
-print(f"Number of classes: {num_classes}")
-print(f"Unique labels: {np.unique(y_train)}")
-
-# One-hot encode labels (for categorical_crossentropy loss)
-y_train = tf.keras.utils.to_categorical(y_train, num_classes)
-y_valid = tf.keras.utils.to_categorical(y_valid, num_classes)
-y_test = tf.keras.utils.to_categorical(y_test, num_classes)
-
-# Alternative: Keep as integers (for sparse_categorical_crossentropy loss)
-# Skip this step if using sparse_categorical_crossentropy
-
-# Print shapes
-print(f"x_train shape: {x_train.shape}, y_train shape: {y_train.shape}")
-print(f"{x_train.shape[0]} training samples")
-print(f"{x_valid.shape[0]} validation samples")
-print(f"{x_test.shape[0]} test samples")
-
-============================================================================
-STEP 9: BUILD CNN MODEL ARCHITECTURE
-============================================================================
-# Auto-detect parameters from data
-input_shape = (img_height, img_width, img_channels)
-num_classes = y_train.shape[1] if len(y_train.shape) > 1 else len(np.unique(y_train))
-
-print(f"Building CNN with:")
-print(f"  Input shape: {input_shape}")
-print(f"  Number of classes: {num_classes}")
-
-model = tf.keras.Sequential()
-
-# First Convolutional Block
-# Filters: 32, 64, 128 (increase for complex images)
-model.add(tf.keras.layers.Conv2D(
-    filters=64,  # Try: 32, 64, 128
-    kernel_size=2,  # Try: 2, 3, 5
-    padding='same', 
-    activation='relu', 
-    input_shape=input_shape
-))
-model.add(tf.keras.layers.MaxPooling2D(pool_size=2))
-model.add(tf.keras.layers.Dropout(0.3))  # 0.2-0.5 to prevent overfitting
-
-# Second Convolutional Block (optional, for deeper networks)
-model.add(tf.keras.layers.Conv2D(
-    filters=32,  # Usually decrease from previous
-    kernel_size=2, 
-    padding='same', 
-    activation='relu'
-))
-model.add(tf.keras.layers.MaxPooling2D(pool_size=2))
-model.add(tf.keras.layers.Dropout(0.3))
-
-# Add more Conv blocks for complex datasets:
-# model.add(tf.keras.layers.Conv2D(filters=16, kernel_size=2, padding='same', activation='relu'))
-# model.add(tf.keras.layers.MaxPooling2D(pool_size=2))
-# model.add(tf.keras.layers.Dropout(0.3))
-
-# Flatten and Dense Layers
-model.add(tf.keras.layers.Flatten())
-model.add(tf.keras.layers.Dense(256, activation='relu'))  # Try: 128, 256, 512
-model.add(tf.keras.layers.Dropout(0.5))  # Higher dropout for dense layers
-model.add(tf.keras.layers.Dense(num_classes, activation='softmax'))
-
-# Display model summary
-model.summary()
-
-============================================================================
-STEP 10: COMPILE THE MODEL
-============================================================================
-# Use categorical_crossentropy for one-hot encoded labels
-# Use sparse_categorical_crossentropy for integer labels
-
-model.compile(
-    loss='categorical_crossentropy',  # For one-hot encoded
-    # loss='sparse_categorical_crossentropy',  # For integer labels
-    optimizer='adam',  # Or: Adam(learning_rate=0.001)
-    metrics=['accuracy']
-)
-
-print("\nModel compiled successfully!")
-
-============================================================================
-STEP 11: SETUP CALLBACKS (Optional but Recommended)
-============================================================================
-from keras.callbacks import ModelCheckpoint, EarlyStopping
-
-# Save best model during training
-checkpointer = ModelCheckpoint(
-    filepath='model.weights.best.keras',
-    verbose=1,
-    save_best_only=True
-)
-
-# Stop training if no improvement
-early_stop = EarlyStopping(
-    monitor='val_loss',
-    patience=10,  # Stop after 10 epochs without improvement
-    restore_best_weights=True
-)
-
-# Use callbacks in fit(): callbacks=[checkpointer, early_stop]
-
-============================================================================
-STEP 12: TRAIN THE MODEL
-============================================================================
-EPOCHS = 10  # Adjust based on dataset (10-50 typical)
-BATCH_SIZE = 64  # Common: 32, 64, 128
-
-print(f"\nTraining for {EPOCHS} epochs with batch size {BATCH_SIZE}...")
-
-history = model.fit(
-    x_train,
-    y_train,
-    batch_size=BATCH_SIZE,
-    epochs=EPOCHS,
-    validation_data=(x_valid, y_valid),
-    callbacks=[checkpointer],  # Add early_stop if using
-    verbose=1
-)
-
-# Alternative: Use validation_split instead of separate validation set
-# history = model.fit(
-#     x_train, y_train,
-#     batch_size=BATCH_SIZE,
-#     epochs=EPOCHS,
-#     validation_split=0.2,
-#     callbacks=[checkpointer],
-#     verbose=1
-# )
-
-print("\nTraining completed!")
-
-============================================================================
-STEP 13: LOAD BEST WEIGHTS (If using ModelCheckpoint)
-============================================================================
-model.load_weights('model.weights.best.keras')
-print("Best weights loaded!")
-
-============================================================================
-STEP 14: EVALUATE ON TEST SET
-============================================================================
-score = model.evaluate(x_test, y_test, verbose=0)
-
-print("\n" + "="*50)
-print("MODEL EVALUATION RESULTS")
-print("="*50)
-print(f"Test Loss: {score[0]:.4f}")
-print(f"Test Accuracy: {score[1]:.4f} ({score[1]*100:.2f}%)")
-print("="*50)
-
-# Plot training history
-plt.figure(figsize=(12, 4))
-
-plt.subplot(1, 2, 1)
-plt.plot(history.history['accuracy'], label='Training Accuracy')
-plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
-plt.xlabel('Epoch')
-plt.ylabel('Accuracy')
-plt.title('Model Accuracy')
-plt.legend()
-plt.grid(True)
-
-plt.subplot(1, 2, 2)
-plt.plot(history.history['loss'], label='Training Loss')
-plt.plot(history.history['val_loss'], label='Validation Loss')
-plt.xlabel('Epoch')
-plt.ylabel('Loss')
-plt.title('Model Loss')
-plt.legend()
-plt.grid(True)
-
-plt.tight_layout()
-plt.show()
-
-============================================================================
-STEP 15: MAKE PREDICTIONS
-============================================================================
-y_hat = model.predict(x_test)
-
-# Get predicted classes
-y_pred = np.argmax(y_hat, axis=1)
-y_true = np.argmax(y_test, axis=1)
-
-print("\nSample predictions (first 10):")
-for i in range(min(10, len(y_pred))):
-    correct = "✓" if y_pred[i] == y_true[i] else "✗"
-    confidence = y_hat[i][y_pred[i]]
-    print(f"{correct} Sample {i}: Predicted={class_labels[y_pred[i]]}, "
-          f"Actual={class_labels[y_true[i]]}, Confidence={confidence:.2%}")
-
-# Calculate metrics
-from sklearn.metrics import classification_report, confusion_matrix
-
-print("\nClassification Report:")
-print(classification_report(y_true, y_pred, target_names=class_labels))
-
-print("\nConfusion Matrix:")
-print(confusion_matrix(y_true, y_pred))
-
-============================================================================
-STEP 16: VISUALIZE PREDICTIONS
-============================================================================
-# Select random samples to visualize
-num_samples = 15
-random_indices = np.random.choice(x_test.shape[0], size=num_samples, replace=False)
-
-figure = plt.figure(figsize=(20, 8))
-for i, index in enumerate(random_indices):
-    ax = figure.add_subplot(3, 5, i+1, xticks=[], yticks=[])
-    
-    # Display image
-    ax.imshow(np.squeeze(x_test[index]), cmap='gray')
-    
-    predict_index = np.argmax(y_hat[index])
-    true_index = np.argmax(y_test[index])
-    
-    # Set title - Green if correct, Red if wrong
-    ax.set_title(
-        "{} ({})\n{:.1f}%".format(
-            class_labels[predict_index],
-            class_labels[true_index],
-            100 * np.max(y_hat[index])
-        ),
-        color=("green" if predict_index == true_index else "red")
-    )
-
-plt.tight_layout()
-plt.show()
-
-# Confusion Matrix Heatmap
-import seaborn as sns
-cm = confusion_matrix(y_true, y_pred)
-
-plt.figure(figsize=(10, 8))
-sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-            xticklabels=class_labels, yticklabels=class_labels)
-plt.xlabel('Predicted Label')
-plt.ylabel('True Label')
-plt.title('Confusion Matrix Heatmap')
-plt.tight_layout()
-plt.show()
-
-============================================================================
-QUICK REFERENCE GUIDE
-============================================================================
-
-📌 WHEN TO USE CNN:
-   - Image classification (spatial patterns matter)
-   - Object detection
-   - Image segmentation
-   - Any 2D grid-like data
-   - Better than DNN for images (preserves spatial relationships)
-
-📌 CNN vs DNN:
-   - CNN: Preserves 2D structure, learns spatial features
-   - DNN: Flattens image immediately, treats pixels independently
-   - CNN typically gives better accuracy for images
-
-📌 CNN ARCHITECTURE PATTERN:
-   Conv2D → MaxPooling2D → Dropout → 
-   Conv2D → MaxPooling2D → Dropout → 
-   Flatten → Dense → Dropout → Dense(output)
-
-📌 KEY LAYER PARAMETERS:
-
-   Conv2D:
-   - filters: 32, 64, 128 (increase for complex images)
-   - kernel_size: 2, 3, 5 (3 most common)
-   - padding: 'same' (keeps size) or 'valid' (reduces size)
-   - activation: 'relu'
-   - input_shape: (height, width, channels) - only first layer
-
-   MaxPooling2D:
-   - pool_size: 2 (most common, reduces dimension by half)
-   - Reduces spatial dimensions, keeps important features
-
-   Dropout:
-   - Rate: 0.2-0.3 (after Conv/Pool), 0.5 (after Dense)
-   - Prevents overfitting by randomly dropping neurons
-
-📌 DATA SHAPE REQUIREMENTS:
-   Input: (num_samples, height, width, channels)
-   - Grayscale: (n, h, w, 1)
-   - RGB: (n, h, w, 3)
-   - Must reshape if shape is (n, h, w)
-
-📌 PREPROCESSING STEPS:
-   1. Load data
-   2. Normalize: x / 255.0 (if 0-255 range)
-   3. Reshape: Add channel dimension if needed
-   4. One-hot encode labels (for categorical_crossentropy)
-   5. Split train/validation/test
-
-📌 LOSS FUNCTIONS:
-   - categorical_crossentropy: For one-hot encoded labels
-   - sparse_categorical_crossentropy: For integer labels
-   - binary_crossentropy: For binary classification
-
-📌 TYPICAL FILTER PROGRESSION:
-   64 → 32 → Dense(256) → Dense(num_classes)
-   OR
-   32 → 64 → 128 → Dense(512) → Dense(num_classes)
-   (Can increase or decrease filters each layer)
-
-📌 COMMON HYPERPARAMETERS:
-   - Epochs: 10-50 (CNNs train slower than ANNs)
-   - Batch size: 32, 64, 128
-   - Validation split: 0.2
-   - Learning rate: 0.001 (Adam default)
-
-📌 CALLBACKS:
-   ModelCheckpoint:
-   - Saves best model during training
-   - save_best_only=True (keeps only best weights)
-   
-   EarlyStopping:
-   - Stops if no improvement
-   - patience=10 (wait 10 epochs)
-   - restore_best_weights=True
-
-📌 PREDICTION OUTPUT:
-   - model.predict() returns probabilities
-   - np.argmax(predictions, axis=1): Get predicted classes
-   - np.max(predictions, axis=1): Get confidence scores
-
-📌 VISUALIZATION TIPS:
-   - Green = Correct prediction
-   - Red = Wrong prediction
-   - Show format: "Predicted (Actual) Confidence%"
-   - Use confusion matrix heatmap for overall performance
-
-📌 IMPROVING MODEL:
-   - More Conv layers: Deeper network, learns complex features
-   - More filters: Wider network, learns more patterns
-   - Larger kernel_size: Captures larger features
-   - More Dense neurons: Better feature combination
-   - Add Dropout: Reduce overfitting
-   - Data augmentation: Artificially increase dataset size
-
-📌 DATASET-SPECIFIC SETTINGS:
-   
-   Fashion-MNIST / MNIST (28x28 grayscale):
-   - Input: (28, 28, 1)
-   - Filters: 64→32
-   - Dense: 256
-   
-   CIFAR-10/100 (32x32 RGB):
-   - Input: (32, 32, 3)
-   - Filters: 32→64→128
-   - Dense: 512
-   
-   Custom high-res images:
-   - Resize to manageable size (64x64, 128x128, 224x224)
-   - More Conv layers needed
-   - More filters (128, 256, 512)
-
-📌 DEBUGGING TIPS:
-   - Check input shape matches model's input_shape
-   - Verify labels are one-hot encoded (if using categorical_crossentropy)
-   - Ensure data is normalized (0-1 range)
-   - Check num_classes matches output layer neurons
-   - Monitor val_loss: if increasing, model is overfitting
-
-📌 MEMORY OPTIMIZATION:
-   - Reduce batch_size if GPU memory error
-   - Use smaller input images
-   - Reduce number of filters
-   - Use model.fit() with steps_per_epoch for large datasets
-
-📌 SAVING/LOADING:
-   model.save('cnn_model.keras')
-   loaded_model = load_model('cnn_model.keras')
-   
-   # For predictions on new images:
-   # 1. Load and resize image
-   # 2. Normalize (/ 255.0)
-   # 3. Reshape to (1, height, width, channels)
-   # 4. Predict: model.predict(image)
-
-
-
-=============================================================================
-DNN (Deep Neural Network) - GENERIC TEMPLATE
-=============================================================================
-Use Case: Image Classification, Complex Pattern Recognition
-Works with: ANY image dataset
-=============================================================================
-
-============================================================================
-STEP 1: IMPORT LIBRARIES
-============================================================================
-import tensorflow as tf
-from tensorflow import keras
-import numpy as np
-import matplotlib.pyplot as plt
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Flatten, Dropout
-
-============================================================================
-STEP 2: LOAD DATASET
-============================================================================
-
-# Option A: Load from Keras built-in datasets
-# dataset = keras.datasets.fashion_mnist  # or mnist, cifar10, cifar100
-# (train_image, train_labels), (test_image, test_labels) = dataset.load_data()
-
-# Option B: Load custom images from directory
-# from keras.preprocessing.image import ImageDataGenerator
-# train_datagen = ImageDataGenerator(rescale=1./255, validation_split=0.2)
-# train_data = train_datagen.flow_from_directory('path/to/train', target_size=(height, width))
-
-# Option C: Load from numpy arrays
-# train_image = np.load('train_images.npy')
-# train_labels = np.load('train_labels.npy')
-# test_image = np.load('test_images.npy')
-# test_labels = np.load('test_labels.npy')
-
-============================================================================
-STEP 3: EXPLORE THE DATASET
-============================================================================
-print("Train image shape:", train_image.shape)  # e.g., (60000, 28, 28)
-print("Train labels shape:", train_labels.shape)  # e.g., (60000,)
-print("Test image shape:", test_image.shape)
-print("Test labels shape:", test_labels.shape)
-
-# Print number of samples
-print(train_image.shape[0], 'train set')
-print(test_image.shape[0], 'test set')
-
-# Check data range and type
-print("Min pixel value:", train_image.min())
-print("Max pixel value:", train_image.max())
-print("Data type:", train_image.dtype)
-
-============================================================================
-STEP 4: DEFINE CLASS NAMES (Optional - for visualization)
-============================================================================
-# Replace with your actual class names
-class_names = ['Class_0', 'Class_1', 'Class_2', 'Class_3', 'Class_4',
-               'Class_5', 'Class_6', 'Class_7', 'Class_8', 'Class_9']
-
-# Or automatically generate based on number of classes
-# num_classes = len(np.unique(train_labels))
-# class_names = [f'Class_{i}' for i in range(num_classes)]
-
-============================================================================
-STEP 5: VISUALIZE SAMPLE IMAGE
-============================================================================
-img_index = 0  # Change to any index
-label_index = train_labels[img_index]
-print(f"Sample {img_index}: Label = {label_index} ({class_names[label_index]})")
-
-plt.figure()
-plt.imshow(train_image[img_index], cmap='gray')  # Use cmap='gray' for grayscale
-plt.colorbar()
-plt.grid(False)
-plt.title(f'Label: {class_names[label_index]}')
-plt.show()
-
-============================================================================
-STEP 6: DATA NORMALIZATION
-============================================================================
-# Check if data needs normalization
-if train_image.max() > 1:
-    print("Normalizing data from 0-255 to 0-1...")
-    train_image = train_image / 255.0
-    test_image = test_image / 255.0
-else:
-    print("Data already normalized")
-
-# Alternative explicit conversion:
-# train_image = train_image.astype('float32') / 255
-# test_image = test_image.astype('float32') / 255
-
-============================================================================
-STEP 7: DISPLAY MULTIPLE IMAGES (Quality Check)
-============================================================================
-num_images = min(25, len(train_image))  # Show up to 25 images
-grid_size = int(np.sqrt(num_images))
-
-plt.figure(figsize=(10, 10))
-for i in range(num_images):
-    plt.subplot(grid_size, grid_size, i+1)
-    plt.xticks([])
-    plt.yticks([])
-    plt.grid(False)
-    plt.imshow(train_image[i], cmap=plt.cm.binary)
-    plt.xlabel(class_names[train_labels[i]])
-plt.show()
-
-============================================================================
-STEP 8: BUILD DNN MODEL
-============================================================================
-# Get image dimensions and number of classes
-img_height, img_width = train_image.shape[1], train_image.shape[2]
-num_classes = len(np.unique(train_labels))
-
-print(f"Image dimensions: {img_height}x{img_width}")
-print(f"Number of classes: {num_classes}")
-
-model = keras.Sequential([
-    # Flatten layer: Convert 2D image to 1D array
-    keras.layers.Flatten(input_shape=(img_height, img_width)),
-    
-    # Hidden layers - adjust neurons based on your dataset
-    keras.layers.Dense(128, activation=tf.nn.relu),
-    keras.layers.Dense(64, activation=tf.nn.relu),
-    keras.layers.Dense(32, activation=tf.nn.relu),
-    
-    # Optional: Add Dropout to prevent overfitting
-    # keras.layers.Dropout(0.2),
-    
-    # Output layer - neurons = number of classes
-    keras.layers.Dense(num_classes, activation=tf.nn.softmax),
-])
-
-# View model architecture
-model.summary()
-
-============================================================================
-STEP 9: COMPILE THE MODEL
-============================================================================
-model.compile(
-    optimizer='adam',
-    loss='sparse_categorical_crossentropy',
-    metrics=['accuracy']
-)
-
-============================================================================
-STEP 10: TRAIN THE MODEL
-============================================================================
-
-# Choose epochs and batch size based on your dataset
-EPOCHS = 10  # Start with 10, increase if needed
-BATCH_SIZE = 32  # Common values: 16, 32, 64
-
-# Option 1: Simple training
-history = model.fit(train_image, train_labels, 
-                    epochs=EPOCHS, 
-                    batch_size=BATCH_SIZE,
-                    validation_split=0.2,  # Use 20% for validation
-                    verbose=1)
-
-# Option 2: Incremental training (if needed)
-# Start with fewer epochs, then continue
-# model.fit(train_image, train_labels, epochs=10)
-# model.fit(train_image, train_labels, epochs=20)  # Continues from epoch 10
-
-# Option 3: With validation data
-# model.fit(train_image, train_labels, 
-#           epochs=EPOCHS,
-#           validation_data=(test_image, test_labels))
-
-============================================================================
-STEP 11: EVALUATE THE MODEL
-============================================================================
-test_loss, test_acc = model.evaluate(test_image, test_labels, verbose=0)
-print("\n" + "="*50)
-print(f"Test Accuracy: {test_acc:.4f} ({test_acc*100:.2f}%)")
-print(f"Test Loss: {test_loss:.4f}")
-print("="*50)
-
-# Plot training history
-plt.figure(figsize=(12, 4))
-
-# Accuracy plot
-plt.subplot(1, 2, 1)
-plt.plot(history.history['accuracy'], label='Training Accuracy')
-if 'val_accuracy' in history.history:
-    plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
-plt.xlabel('Epoch')
-plt.ylabel('Accuracy')
-plt.legend()
-plt.title('Model Accuracy')
-plt.grid(True)
-
-# Loss plot
-plt.subplot(1, 2, 2)
-plt.plot(history.history['loss'], label='Training Loss')
-if 'val_loss' in history.history:
-    plt.plot(history.history['val_loss'], label='Validation Loss')
-plt.xlabel('Epoch')
-plt.ylabel('Loss')
-plt.legend()
-plt.title('Model Loss')
-plt.grid(True)
-
-plt.tight_layout()
-plt.show()
-
-============================================================================
-STEP 12: MAKE PREDICTIONS
-============================================================================
-predictions = model.predict(test_image)
-
-# View prediction for any image
-sample_idx = 0  # Change to any index
-print(f"\nPrediction probabilities for image {sample_idx}:")
-print(predictions[sample_idx])
-
-# Get the class with highest probability
-predicted_class = np.argmax(predictions[sample_idx])
-confidence = np.max(predictions[sample_idx])
-actual_class = test_labels[sample_idx]
-
-print(f"\nPredicted class: {predicted_class} ({class_names[predicted_class]})")
-print(f"Confidence: {confidence*100:.2f}%")
-print(f"Actual class: {actual_class} ({class_names[actual_class]})")
-print(f"Correct: {predicted_class == actual_class}")
-
-============================================================================
-STEP 13: VISUALIZATION FUNCTIONS
-============================================================================
-
-# Function to plot image with prediction
-def plot_image(i, predictions_array, true_labels, images):
-    predictions_array, true_label, img = predictions_array[i], true_labels[i], images[i]
-    plt.grid(False)
-    plt.xticks([])
-    plt.yticks([])
-    plt.imshow(img, cmap=plt.cm.binary)
-    
-    predicted_label = np.argmax(predictions_array)
-    if predicted_label == true_label:
-        color = 'green'
+***Preprocessing Text***
+text = """
+🔥 MUMBAI MERI JAN 💖 <b>Mumbai</b> (/mʊmˈbaɪ/ muum-BY; Marathi: <i>Mumbaī</i>, pronounced [ˈmumbəi] ⓘ), also known as <u>Bombay</u> (/bɒmˈbeɪ/ bom-BAY; its official name until 1995 😅 👉), is the capital city of the Indian state of Maharashtra 🌏.
+Visit: https://en.wikipedia.org/wiki/Mumbai OR http://mumbai-life.com for more!!! 🎉
+
+Mumbai = the financial capital & the most populous city proper of India 😎💰 with an estimated population of 12.5 million (1.25 crore)!!! [20] 📊.
+Mumbai is the centre of the "Mumbai Metropolitan Region", which is among the most populous metropolitan areas in the world 🌍 with a population of over 23,000,000 (2.3 crore) 🤯😲 [21].
+Mumbai lies on the Konkan coast 🌊 on the west coast of India and has a deep natural harbour ⚓.
+In 2008 😜, Mumbai was named an <a href="https://alpha-world-cities.com">alpha world city</a> 😍🔥 [22][23].
+Mumbai has the highest number of billionaires 💵💵💵 out of ANY city in Asia 🤩 [a].
+
+The 7️⃣ islands that constitute Mumbai were earlier 🐟 home to communities of Marathi language-speaking Koli people [25][26][27]. For centuries!!! 🤔 the seven islands of "Bombay" were under the control of successive indigenous rulers 😱 before being ceded to the Portuguese Empire 🇵🇹, and subsequently to the East India Company in 1661, as part of the dowry 🎁 of Catherine of Braganza 💃 in her marriage to Charles II of England 👑 [28].
+
+Beginning in 1782 (yep, looong ago 😂), Mumbai was reshaped by the Hornby Vellard project 🏗️ [29], which undertook reclamation of the area between the seven islands from the Arabian Sea 🌊 [30].
+Along with the construction of major roads 🛣️ & railways 🚂, the reclamation project (completed in 1845 😮) transformed Mumbai into a major seaport ⚓ on the Arabian Sea.
+
+Mumbai in the 19th century = economic 💼 and educational 📚 development.
+During the early 20th century it became a strong base for the Indian independence movement 🇮🇳✊.
+Upon India's independence in 1947 🎆 the city was incorporated into Bombay State.
+In 1960 (after the Samyukta Maharashtra Movement ✊💪), a new state of Maharashtra was created with Mumbai as the capital [31].
+
+Mumbai is the financial, commercial, and 🎬 entertainment capital of India.
+It's often compared to NYC 🗽🍎 [33][34], and is home to the Bombay Stock Exchange 💹 (Dalal Street).
+It’s also one of the world's top 🔟 centres of commerce 💵💼 in terms of global financial flow 🌐 [35], generating 6.16% of India's GDP 😲 [36], & accounting for 25% of the nation's industrial output, 70% of maritime trade 🚢 (Mumbai Port Trust, Dharamtar Port & JNPT), and 70% of capital transactions 💰💰 [38][39].
+
+The city houses financial institutions, HQs of MNCs, scientific institutes 🧪, nuclear institutes ☢️, + the Hindi & Marathi film industries 🎥🎶.
+Mumbai's business opportunities attract migrants from all over India 🌍➡️🇮🇳."""
+
+pip install emoji
+from nltk import sent_tokenize,word_tokenize
+import nltk
+nltk.download('punkt')
+nltk.download('punkt_tab')
+import string
+import re
+import emoji
+clean_sentences=[]
+sentences=sent_tokenize(text)
+for sentence in sentences:
+  #processsing at sentence level html tags, urls, punctuations or any other special char
+  #This is for the html tags
+  sentence=re.sub(r'https?://\S+',' ', sentence) # Fixed the regex for URLs
+  sentence=re.sub(r'<.*?>','',sentence)
+  #remove single quotes
+  sentence=re.sub(r"'",'',sentence)
+  # Remove punctuation, but keep emojis for now
+  sentence = sentence.translate(str.maketrans('', '', string.punctuation.replace("","")))
+  words = word_tokenize(sentence)
+  processed_words = []
+  for word in words:
+    # Keep digits as they are
+    if word.isdigit():
+        processed_words.append(word)
+    # Convert emojis to text
+    elif word in emoji.EMOJI_DATA:
+      processed_words.append(emoji.demojize(word).replace(":"," ").replace("_"," ").strip())
     else:
-        color = 'red'
-    
-    plt.xlabel("{} {:2.0f}% ({})".format(
-        class_names[predicted_label],
-        100 * np.max(predictions_array),
-        class_names[true_label]
-    ), color=color)
+      # Handle multi-character emojis and regular words
+      multiemojis = ""
+      for ch in word:
+        if ch in emoji.EMOJI_DATA:
+          multiemojis += " " + emoji.demojize(ch).replace(":", " ").replace("_", " ").strip()
+        else:
+          multiemojis += ch
+      processed_words.append(multiemojis.strip())
+  clean_sentences.append(" ".join(processed_words))
+print(clean_sentences)
 
-# Function to plot prediction confidence bars
-def plot_value_array(i, predictions_array, true_label):
-    predictions_array, true_label = predictions_array[i], true_label[i]
-    plt.grid(False)
-    num_classes = len(predictions_array)
-    plt.xticks(range(num_classes), range(num_classes), rotation=45)
-    plt.yticks([])
-    thisplot = plt.bar(range(num_classes), predictions_array, color='#777777')
-    plt.ylim([0, 1])
-    predicted_label = np.argmax(predictions_array)
-    
-    thisplot[predicted_label].set_color('red')
-    thisplot[true_label].set_color('green')
+words = word_tokenize(sentence)
+for i,word in enumerate(words):
+  if word not in string.digits:
+    words[i] = word
+  #convert the emoji to text
+  if word in emoji.EMOJI_DATA:
+    words[i] = emoji.demojize(word).replace(":"," ").replace("_"," ").strip()
+  else:
+    multiemojis=" "
+    for ch in word:
+      if ch in emoji.EMOJI_DATA:
+        print(ch)
+        multiemojis +=" " +emoji.demojize(ch).replace(":"," ").replace("_"," ").strip()
+      else:
+        multiemojis +=ch
+      words[i] = multiemojis
+  clean_sentences.append(" ".join(words))
+  #print words
+  print(words)
 
-============================================================================
-STEP 14: VISUALIZE PREDICTIONS
-============================================================================
-
-# Single prediction visualization
-i = 0  # Change to any index
-plt.figure(figsize=(8, 3))
-plt.subplot(1, 2, 1)
-plot_image(i, predictions, test_labels, test_image)
-plt.subplot(1, 2, 2)
-plot_value_array(i, predictions, test_labels)
-plt.tight_layout()
-plt.show()
-
-# Visualize multiple predictions (grid)
-num_rows = 5
-num_cols = 3
-num_images = num_rows * num_cols
-
-plt.figure(figsize=(2*2*num_cols, 2*num_rows))
-for i in range(num_images):
-    plt.subplot(num_rows, 2*num_cols, 2*i+1)
-    plot_image(i, predictions, test_labels, test_image)
-    plt.subplot(num_rows, 2*num_cols, 2*i+2)
-    plot_value_array(i, predictions, test_labels)
-plt.tight_layout()
-plt.show()
-
-# Calculate and display accuracy
-correct_predictions = np.sum(np.argmax(predictions, axis=1) == test_labels)
-total_predictions = len(test_labels)
-accuracy = correct_predictions / total_predictions
-print(f"\nCorrect predictions: {correct_predictions}/{total_predictions}")
-print(f"Accuracy: {accuracy*100:.2f}%")
-
-============================================================================
-QUICK REFERENCE GUIDE
-============================================================================
-
-📌 DNN vs ANN:
-   - DNN: For images, complex patterns (uses Flatten layer)
-   - ANN: For tabular data (uses Dense layers directly)
-
-📌 TYPICAL DNN ARCHITECTURE:
-   Flatten(height, width) → Dense(128, relu) → Dense(64, relu) → 
-   Dense(32, relu) → Dense(num_classes, softmax)
-
-📌 KEY PARAMETERS TO ADJUST:
-   - img_height, img_width: Your image dimensions
-   - num_classes: Number of categories in your dataset
-   - EPOCHS: 10 (small dataset) to 100+ (large dataset)
-   - BATCH_SIZE: 16, 32, 64, 128
-   - neurons: 128→64→32 (decrease by half each layer)
-
-📌 KEY LAYERS:
-   - Flatten: Converts 2D/3D data to 1D
-   - Dense: Fully connected layer
-   - Dropout: Prevents overfitting (use 0.2-0.5)
-   - Activation: relu (hidden), softmax (output multi-class)
-
-📌 ACTIVATION FUNCTIONS:
-   - Hidden layers: 'relu' (most common)
-   - Output (multi-class): 'softmax'
-   - Output (binary): 'sigmoid'
-
-📌 LOSS FUNCTIONS:
-   - Multi-class (integer labels): 'sparse_categorical_crossentropy'
-   - Multi-class (one-hot): 'categorical_crossentropy'
-   - Binary: 'binary_crossentropy'
-   - Regression: 'mse'
-
-📌 OPTIMIZER OPTIONS:
-   - 'adam' (most common, adaptive learning rate)
-   - 'sgd', 'rmsprop', 'adamax'
-   - Adam(learning_rate=0.001)  # Custom learning rate
-
-📌 DATA PREPROCESSING CHECKLIST:
-   1. Load dataset
-   2. Check shape and dimensions
-   3. Normalize: image / 255.0 (if 0-255 range)
-   4. Define class names
-   5. Verify data types (float32 recommended)
-
-📌 PREDICTION INTERPRETATION:
-   - predictions[i]: Array of probabilities for each class
-   - np.argmax(predictions[i]): Predicted class index
-   - np.max(predictions[i]): Confidence score (0-1)
-
-📌 VISUALIZATION TIPS:
-   - Use plt.imshow() for images
-   - cmap='gray' for grayscale images
-   - Green label = Correct prediction
-   - Red label = Wrong prediction
-   - Bar chart shows confidence for all classes
-
-📌 COMMON DATASET SHAPES:
-   - MNIST/Fashion-MNIST: (28, 28) grayscale
-   - CIFAR-10/100: (32, 32, 3) RGB
-   - Custom: (height, width) or (height, width, channels)
-
-📌 WHEN TO USE VALIDATION:
-   - validation_split=0.2: Use 20% of training data
-   - validation_data=(x_val, y_val): Separate validation set
-   - Helps detect overfitting during training
-
-📌 IMPROVING MODEL PERFORMANCE:
-   1. Add more layers (deeper network)
-   2. Add more neurons per layer (wider network)
-   3. Add Dropout layers (reduce overfitting)
-   4. Increase epochs (more training)
-   5. Adjust learning rate
-   6. Use data augmentation (for images)
-   7. Try different optimizers
-
-📌 DEBUGGING TIPS:
-   - If accuracy stuck: Check learning rate, add/remove layers
-   - If overfitting: Add Dropout, reduce complexity, get more data
-   - If underfitting: Add layers, increase neurons, train longer
-   - Check data shape: Must match input_shape in model
-
-
-
-=============================================================================
-EXPLAINABLE AI (XAI) - GENERIC TEMPLATE
-=============================================================================
-Use Case: Understanding Model Predictions, Feature Importance, LIME
-Works with: ANY tabular classification/regression model
-=============================================================================
-
-============================================================================
-STEP 1: IMPORT LIBRARIES
-============================================================================
+***Feature Engineering (1. Bag of words(english))***
+import sklearn
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+import nltk
+nltk.download('stopwords')
+from nltk.corpus import stopwords
 import pandas as pd
-import numpy as np
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense
-from lime import lime_tabular
-from lime.lime_tabular import LimeTabularExplainer
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-import matplotlib.pyplot as plt
-
-# Install LIME if needed
-# !pip install lime
-
-============================================================================
-STEP 2: LOAD AND EXPLORE DATASET
-============================================================================
-# Load data
-data = pd.read_csv('your_dataset.csv')
-df = pd.DataFrame(data)
-
-# Explore data
-print(df.info())
-print(df.describe())
-print(df.isnull().sum())
-print(df.duplicated().sum())
-print(df.shape)
-
-============================================================================
-STEP 3: PREPARE FEATURES AND TARGET
-============================================================================
-# Separate features and target
-X = df.drop('target_column', axis=1)
-y = df['target_column']
-
-# Check unique values in target
-print(y.unique())
-
-============================================================================
-STEP 4: ENCODE TARGET (For Multi-class)
-============================================================================
-# One-hot encode the target variable
-y_encoded = pd.get_dummies(y)
-y_encoded = pd.DataFrame(y_encoded)
-
-print(y_encoded.head())
-
-============================================================================
-STEP 5: TRAIN-TEST SPLIT
-============================================================================
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y_encoded, 
-    test_size=0.2, 
-    random_state=42
-)
-
-============================================================================
-STEP 6: FEATURE SCALING
-============================================================================
-scaler = StandardScaler()
-X_train = scaler.fit_transform(X_train)
-X_test = scaler.transform(X_test)
-
-============================================================================
-STEP 7: BUILD AND TRAIN MODEL
-============================================================================
-model = Sequential([
-    Dense(11, activation='relu', input_shape=(X_train.shape[1],)),
-    Dense(32, activation='relu'),
-    Dense(6, activation='softmax')  # 6 classes for wine quality (3-8)
-])
-
-# For binary classification:
-# model = Sequential([
-#     Dense(11, activation='relu', input_shape=(X_train.shape[1],)),
-#     Dense(32, activation='relu'),
-#     Dense(1, activation='sigmoid')
-# ])
-
-============================================================================
-STEP 8: COMPILE MODEL
-============================================================================
-model.compile(
-    optimizer='adam',
-    loss='categorical_crossentropy',  # multi-class
-    # loss='binary_crossentropy',  # binary
-    metrics=['accuracy']
-)
-
-============================================================================
-STEP 9: TRAIN MODEL
-============================================================================
-model.fit(
-    X_train, y_train,
-    epochs=10,
-    batch_size=16,
-    validation_split=0.2,
-    verbose=1
-)
-
-============================================================================
-STEP 10: EVALUATE MODEL
-============================================================================
-loss, accuracy = model.evaluate(X_test, y_test)
-print(f"\nTest Loss: {loss:.4f}")
-print(f"Test Accuracy: {accuracy:.4f}")
-
-============================================================================
-STEP 11: CREATE LIME EXPLAINER
-============================================================================
-explainer = LimeTabularExplainer(
-    X_train,
-    feature_names=X.columns,  # Original feature names
-    class_names=y.unique(),   # Target class names
-    mode='classification'     # 'classification' or 'regression'
-)
-
-============================================================================
-STEP 12: EXPLAIN A SINGLE INSTANCE
-============================================================================
-# Select instance to explain
-i = 0  # Index of test sample
-instance = X_test[i]
-
-# Generate explanation
-exp = explainer.explain_instance(
-    instance,
-    model.predict,
-    num_features=10  # Show top 10 features
-)
-
-============================================================================
-STEP 13: VISUALIZE EXPLANATION
-============================================================================
-# Plot the explanation
-fig = exp.as_pyplot_figure()
-plt.title(f'LIME Explanation for Instance {i}')
-plt.tight_layout()
-plt.show()
-
-============================================================================
-STEP 14: PRINT EXPLANATION DETAILS
-============================================================================
-# Print feature contributions
-print(f"\n{'='*60}")
-print(f"LIME Explanation for Instance {i}")
-print(f"{'='*60}")
-
-# Get prediction
-prediction = model.predict(instance.reshape(1, -1))
-predicted_class = np.argmax(prediction)
-print(f"\nPredicted Class: {predicted_class}")
-print(f"Prediction Probabilities: {prediction[0]}")
-
-# Get feature importance
-print("\nFeature Contributions:")
-for feature, weight in exp.as_list():
-    print(f"{feature}: {weight:.4f}")
-
-============================================================================
-STEP 15: SAVE EXPLANATION AS HTML
-============================================================================
-exp.save_to_file('lime_explanation.html')
-print("\n✅ LIME explanation saved to 'lime_explanation.html'")
-
-============================================================================
-STEP 16: EXPLAIN MULTIPLE INSTANCES
-============================================================================
-# Explain first 5 test instances
-num_instances = 5
-
-for i in range(num_instances):
-    instance = X_test[i]
-    exp = explainer.explain_instance(
-        instance,
-        model.predict,
-        num_features=5
-    )
-    
-    print(f"\n{'='*60}")
-    print(f"Instance {i}")
-    print(f"{'='*60}")
-    
-    prediction = model.predict(instance.reshape(1, -1))
-    predicted_class = np.argmax(prediction)
-    print(f"Predicted Class: {predicted_class}")
-    
-    print("Top 5 Feature Contributions:")
-    for feature, weight in exp.as_list():
-        print(f"  {feature}: {weight:.4f}")
-
-============================================================================
-STEP 17: FEATURE IMPORTANCE VISUALIZATION
-============================================================================
-# Aggregate feature importance across multiple instances
-feature_importance = {}
-num_samples = 10
-
-for i in range(min(num_samples, len(X_test))):
-    instance = X_test[i]
-    exp = explainer.explain_instance(
-        instance,
-        model.predict,
-        num_features=len(X.columns)
-    )
-    
-    for feature, weight in exp.as_list():
-        feature_name = feature.split()[0]  # Extract feature name
-        if feature_name not in feature_importance:
-            feature_importance[feature_name] = []
-        feature_importance[feature_name].append(abs(weight))
-
-# Calculate average importance
-avg_importance = {k: np.mean(v) for k, v in feature_importance.items()}
-
-# Sort by importance
-sorted_features = sorted(avg_importance.items(), key=lambda x: x[1], reverse=True)
-
-# Plot
-plt.figure(figsize=(10, 6))
-features = [f[0] for f in sorted_features[:10]]
-importance = [f[1] for f in sorted_features[:10]]
-
-plt.barh(features, importance)
-plt.xlabel('Average Absolute Weight')
-plt.ylabel('Feature')
-plt.title('Top 10 Feature Importance (LIME)')
-plt.gca().invert_yaxis()
-plt.tight_layout()
-plt.show()
-
-============================================================================
-QUICK REFERENCE GUIDE
-============================================================================
-
-📌 WHAT IS LIME?
-   - Local Interpretable Model-agnostic Explanations
-   - Explains individual predictions
-   - Works with any model (model-agnostic)
-   - Creates local linear approximation
-
-📌 LIME WORKFLOW:
-   1. Train your model
-   2. Create LimeTabularExplainer
-   3. Explain specific instances
-   4. Visualize and analyze
-
-📌 LimeTabularExplainer PARAMETERS:
-   - training_data: Scaled training data (X_train)
-   - feature_names: Column names from original data
-   - class_names: Target class labels
-   - mode: 'classification' or 'regression'
-
-📌 explain_instance PARAMETERS:
-   - data_row: Single instance to explain
-   - predict_fn: model.predict function
-   - num_features: Number of features to show
-
-📌 PREPROCESSING FOR LIME:
-   1. Scale features (StandardScaler)
-   2. Keep original column names
-   3. Use scaled data for explainer
-   4. Use original feature names for display
-
-📌 VISUALIZATION OPTIONS:
-   - exp.as_pyplot_figure(): Matplotlib plot
-   - exp.show_in_notebook(): Jupyter display
-   - exp.save_to_file('file.html'): Save as HTML
-
-📌 INTERPRETATION:
-   - Positive weight: Feature increases prediction
-   - Negative weight: Feature decreases prediction
-   - Larger magnitude: More important feature
-   - Shows feature value ranges
-
-📌 COMMON USE CASES:
-   - Wine quality prediction
-   - Credit scoring
-   - Medical diagnosis
-   - Fraud detection
-   - Customer churn
-
-📌 ACTIVATION & LOSS FOR MULTI-CLASS:
-   - Hidden layers: 'relu'
-   - Output: 'softmax'
-   - Loss: 'categorical_crossentropy'
-   - One-hot encode target: pd.get_dummies()
-
-📌 YOUR CODING PATTERN:
-   1. Load data → df.info(), describe(), isnull()
-   2. X = features, y = target
-   3. One-hot encode: pd.get_dummies(y)
-   4. Split: train_test_split
-   5. Scale: StandardScaler
-   6. Build model: Sequential with Dense layers
-   7. Compile: adam, categorical_crossentropy
-   8. Fit: epochs=10, batch_size=16
-   9. LIME: Create explainer with X_train
-   10. Explain: explain_instance with model.predict
-
-📌 FEATURE NAMES:
-   - Use original column names: X.columns
-   - Before scaling, not after
-   - Helps with interpretation
-
-📌 TYPICAL ARCHITECTURE:
-   Dense(11, relu) → Dense(32, relu) → Dense(classes, softmax)
-   
-   Input neurons match number of features
-   Hidden layer larger than input
-   Output matches number of classes
-
-📌 BATCH SIZE & EPOCHS:
-   - batch_size: 16 (smaller for LIME models)
-   - epochs: 10, 20, 50
-   - validation_split: 0.2
-
-📌 LIME vs SHAP:
-   - LIME: Faster, local explanations
-   - SHAP: More accurate, global + local
-   - LIME easier to implement
-   - Both model-agnostic
-
-📌 TIPS:
-   - Explain multiple instances for patterns
-   - Save explanations as HTML for reports
-   - Use num_features to control detail
-   - Aggregate explanations for overall importance
-   - Green bars = positive contribution
-   - Orange/Red bars = negative contribution
-
-📌 DEBUGGING:
-   - Ensure X_train is scaled
-   - feature_names must match columns
-   - class_names should be strings/labels
-   - predict function should return probabilities
-
-
-=============================================================================
-DEEP LEARNING - GENERIC TEMPLATES INDEX & QUICK GUIDE
-=============================================================================
-All templates work with ANY dataset - just plug in your data!
-Location: /home/shaun/Downloads/pro/DeeplearningLAB/CheatSheets_TXT/
-=============================================================================
-
-============================================================================
-📚 AVAILABLE CHEAT SHEETS
-============================================================================
-
-1. ANN_CheatSheet.txt
-   ✅ Artificial Neural Network - GENERIC TEMPLATE
-   - Use for: ANY tabular/CSV dataset (classification/regression)
-   - Examples: Customer churn, price prediction, disease diagnosis
-   - Key: Automatically detects features, scales data, handles any # of classes
-   - Works with: CSV, Excel, pandas DataFrames
-
-2. DNN_CheatSheet.txt
-   ✅ Deep Neural Network - GENERIC TEMPLATE
-   - Use for: ANY image dataset (flattened approach)
-   - Examples: MNIST, Fashion-MNIST, CIFAR, custom images
-   - Key: Auto-detects image dimensions and # of classes
-   - Works with: Keras datasets, numpy arrays, image directories
-
-3. CNN_CheatSheet.txt
-   ✅ Convolutional Neural Network - GENERIC TEMPLATE
-   - Use for: ANY image dataset (spatial feature extraction)
-   - Examples: Object recognition, medical imaging, satellite images
-   - Key: Auto-configures input shape and output classes
-   - Works with: Grayscale (28x28), RGB (32x32, 224x224), custom sizes
-
-4. RNN_CheatSheet.txt
-   ✅ Recurrent Neural Network - GENERIC TEMPLATE
-   - Use for: ANY text dataset (classification/generation)
-   - Examples: Sentiment analysis, spam detection, text generation
-   - Key: Generic tokenization, handles any vocabulary size
-   - Works with: CSV text data, .txt files, pandas DataFrames
-
-5. ExplainableAI_CheatSheet.txt
-   ✅ LIME Explainability - GENERIC TEMPLATE
-   - Use for: Explaining ANY ML model predictions
-   - Examples: Feature importance for any classification/regression
-   - Key: Model-agnostic, works with tabular data
-   - Works with: Any trained model + original dataset
-
-============================================================================
-🎯 QUICK DECISION TREE - WHICH MODEL TO USE?
-============================================================================
-
-YOUR DATA TYPE → RECOMMENDED MODEL
-
-📊 Tabular/CSV Data (numbers, categories, features in columns)
-   ├─ Classification/Regression → ANN_CheatSheet.txt
-   └─ Want to explain predictions → ExplainableAI_CheatSheet.txt
-
-🖼️ Image Data (photos, pictures, visual data)
-   ├─ Simple classification → DNN_CheatSheet.txt
-   └─ Complex patterns/features → CNN_CheatSheet.txt (RECOMMENDED)
-
-📝 Text Data (sentences, reviews, documents)
-   ├─ Sentiment/Classification → RNN_CheatSheet.txt (Part 1)
-   └─ Text generation/Next word → RNN_CheatSheet.txt (Part 2)
-
-============================================================================
-🔧 UNIVERSAL WORKFLOW FOR ANY DATASET
-============================================================================
-
-ALL TEMPLATES FOLLOW THIS PATTERN:
-
-1. LOAD YOUR DATA
-   - CSV: pd.read_csv('file.csv')
-   - Images: keras.datasets or from directory
-   - Text: From CSV or text files
-
-2. AUTO-DETECT PARAMETERS
-   ✅ Templates automatically detect:
-   - Number of features
-   - Number of classes
-   - Image dimensions
-   - Input/output shapes
-
-3. PREPROCESS
-   - Normalize/Scale (automatic checks)
-   - Encode labels if needed
-   - Reshape for model type
-
-4. BUILD MODEL
-   - Auto-configured architecture
-   - Adjust neurons/filters as needed
-
-5. TRAIN
-   - Set EPOCHS and BATCH_SIZE
-   - Monitor validation metrics
-
-6. EVALUATE & PREDICT
-   - Automatic metrics calculation
-   - Visualization included
-
-============================================================================
-📌 KEY CHANGES - ALL TEMPLATES ARE NOW GENERIC!
-============================================================================
-
-✅ NO hardcoded dataset names
-✅ NO hardcoded dimensions (28x28, etc.)
-✅ NO hardcoded number of classes
-✅ AUTO-DETECTION of all parameters
-✅ FLEXIBLE data loading (CSV, images, text)
-✅ WORKS with ANY dataset size
-✅ INCLUDES multiple loading methods
-
-YOU ONLY NEED TO:
-1. Load your data
-2. (Optional) Define class names
-3. Set EPOCHS and BATCH_SIZE
-4. Run!
-
-============================================================================
-📖 COMMON PARAMETERS FROM YOUR CODE
-============================================================================
-
-OPTIMIZERS YOU USE:
-✅ Adam(learning_rate=0.01)
-✅ SGD(learning_rate=0.01, momentum=0.9)
-✅ SGD(learning_rate=0.001, momentum=0.9)
-✅ SGD(learning_rate=0.0001, momentum=0.9)
-✅ SGD(learning_rate=0.0005, momentum=0.9)
-
-TYPICAL ARCHITECTURES:
-✅ ANN: Dense(64) → Dense(32) → Dense(16) → Output
-✅ DNN: Flatten → Dense(128) → Dense(64) → Dense(32) → Output
-✅ CNN: Conv2D(64) → MaxPool → Conv2D(32) → MaxPool → Flatten → Dense(256) → Output
-✅ RNN: Embedding → SimpleRNN(100) → Dense(vocab_size)
-
-ACTIVATION FUNCTIONS:
-✅ Hidden layers: 'relu', sometimes 'tanh'
-✅ Binary output: 'sigmoid'
-✅ Multi-class output: 'softmax' or 'sigmoid'
-✅ Regression: 'linear'
-
-LOSS FUNCTIONS:
-✅ Binary: 'binary_crossentropy'
-✅ Multi-class (int): 'sparse_categorical_crossentropy'
-✅ Multi-class (one-hot): 'categorical_crossentropy'
-✅ Regression: 'mse'
-
-TRAINING PARAMETERS:
-✅ Epochs: 10, 100, 300, 500
-✅ Batch size: 10, 16, 32, 64
-✅ Test size: 0.2, 0.3
-✅ Validation split: 0.2
-
-============================================================================
-💡 EXAM PREPARATION TIPS
-============================================================================
-
-🎯 WHAT TO MEMORIZE:
-
-1. IMPORT STATEMENTS
-   from keras.models import Sequential
-   from keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, Embedding, SimpleRNN
-   from sklearn.preprocessing import StandardScaler, LabelEncoder
-   from sklearn.model_selection import train_test_split
-
-2. DATA PREPROCESSING SEQUENCE
-   Load → Check (shape, info, nulls) → Split X,y → Encode → Scale → Train-test split
-
-3. MODEL BUILDING PATTERN
-   Sequential() → Add layers → compile() → fit() → evaluate() → predict()
-
-4. LAYER CONFIGURATIONS
-   - Input shape: (features,) for Dense, (height, width, channels) for Conv2D
-   - Hidden neurons: Powers of 2 (64, 32, 16) or multiples (128, 256)
-   - Output neurons: 1 for binary, num_classes for multi-class
-
-5. COMMON MISTAKES TO AVOID
-   ✗ Forgetting to scale data
-   ✗ Wrong activation on output layer
-   ✗ Mismatch between loss function and output
-   ✗ Not reshaping images for CNN
-   ✗ Forgetting to one-hot encode for categorical_crossentropy
-
-6. VISUALIZATION CODE
-   - Training history: plt.plot(history.history['accuracy'])
-   - Confusion matrix: confusion_matrix(y_test, y_pred)
-   - Images: plt.imshow(image), plt.colorbar()
-
-============================================================================
-🚀 QUICK START TEMPLATES
-============================================================================
-
-MINIMAL CODE FOR EACH TYPE:
-
-🔹 ANN (Tabular Classification):
-
-model = Sequential([
-    Dense(64, activation='relu', input_shape=(features,)),
-    Dense(32, activation='relu'),
-    Dense(1, activation='sigmoid')
-])
-model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-model.fit(X_train, y_train, epochs=100, batch_size=10)
-
-🔹 DNN (Image Classification):
-
-model = Sequential([
-    Flatten(input_shape=(28, 28)),
-    Dense(128, activation='relu'),
-    Dense(10, activation='softmax')
-])
-model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-model.fit(train_images, train_labels, epochs=10)
-
-🔹 CNN (Image with Convolution):
-
-model = Sequential([
-    Conv2D(64, kernel_size=2, activation='relu', input_shape=(28,28,1)),
-    MaxPooling2D(pool_size=2),
-    Flatten(),
-    Dense(10, activation='softmax')
-])
-model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-
-🔹 RNN (Text Classification):
-
-model = Sequential([
-    Embedding(vocab_size, 10, input_length=maxlen),
-    SimpleRNN(16),
-    Dense(3, activation='softmax')
-])
-model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-
-============================================================================
-📝 EXAM DAY CHECKLIST
-============================================================================
-
-✅ Know which model for which data type
-✅ Remember preprocessing steps (scale, encode, split)
-✅ Know layer types: Dense, Conv2D, MaxPooling2D, Flatten, Embedding, SimpleRNN
-✅ Activation functions: relu, sigmoid, softmax, linear
-✅ Loss functions: binary_crossentropy, sparse_categorical_crossentropy, mse
-✅ Optimizer syntax: Adam(learning_rate=0.01), SGD(learning_rate=0.01, momentum=0.9)
-✅ How to reshape data for CNN: (samples, height, width, channels)
-✅ Tokenization for RNN: Tokenizer → fit_on_texts → texts_to_sequences → pad_sequences
-✅ Evaluation: model.evaluate(X_test, y_test)
-✅ Prediction: model.predict(X_test)
-✅ Visualization: plt.plot(history.history['accuracy'])
-
-🎯 GOOD LUCK ON YOUR EXAM! 🎯
-
-============================================================================
-All cheat sheets ready!
-Location: /home/shaun/Downloads/pro/DeeplearningLAB/CheatSheets/
-
-✅ Files created:
-   1. ANN_CheatSheet.py
-   2. DNN_CheatSheet.py
-   3. CNN_CheatSheet.py
-   4. RNN_CheatSheet.py
-   5. ExplainableAI_CheatSheet.py
-   6. INDEX_QuickGuide.py (this file)
-
-
-
-=============================================================================
-RNN (Recurrent Neural Network) - GENERIC TEMPLATE
-=============================================================================
-Use Case: Text Classification, Sentiment Analysis, Next Word Prediction
-Works with: ANY text dataset
-=============================================================================
-
-============================================================================
-PART 1: TEXT CLASSIFICATION / SENTIMENT ANALYSIS
-============================================================================
-
-============================================================================
-STEP 1: IMPORT LIBRARIES
-============================================================================
-import numpy as np
-from tensorflow.keras.preprocessing.text import Tokenizer
-from tensorflow.keras.preprocessing.sequence import pad_sequences
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Embedding, SimpleRNN, Dense, LSTM
-from sklearn.model_selection import train_test_split
-
-============================================================================
-STEP 2: PREPARE TEXT DATA
-============================================================================
-# Load your text data (choose one method)
-
-# Method 1: Manual list (small datasets)
 reviews = [
-    "Your first text sample here",
-    "Your second text sample here",
-    "Your third text sample here",
-    # Add more samples...
+    "Battery Battery life Battery is life excellent and the camera amazing amazing quality is good.",
+    "Camera is awesome but battery drains very fast.",
+    "Display is bright and the design looks premium.",
+    "The phone design and display are amazing.",
+    "Sound amazing quality is average but battery backup is strong.",
+    "Camera performs well in low light conditions.",
+    "The design is sleek and the phone feels premium in hand.",
+    "Display and sound are both crystal clear.",
+    "Battery amazing charging takes too long but the backup is decent.",
+    "Camera excellent quality and display are the best at this price."
 ]
-labels = [0, 1, 2]  # Corresponding labels
+english_stopwords=stopwords.words('english')
+vectorizer= CountVectorizer(stop_words=english_stopwords)
+vectorizer=CountVectorizer()
+vectorizer
+X=vectorizer.fit_transform(reviews)
+print(vectorizer.get_feature_names_out())
+print(X.toarray())
+df=pd.DataFrame(X.toarray(),columns=vectorizer.get_feature_names_out())
+df
 
-# Method 2: Load from CSV
-# import pandas as pd
-# df = pd.read_csv('your_dataset.csv')
-# reviews = df['text_column'].tolist()
-# labels = df['label_column'].tolist()
+***Feature Engineering(1. Bag of words(Hindi)***
+reviews_hindi = [
+    "यह उत्पाद बहुत अच्छा है के",
+    "मुझे यह उत्पाद पसंद आया",
+    "उत्पाद की गुणवत्ता बेहतरीन है",
+    "डिलीवरी बहुत तेज़ थी और पैकिंग अच्छी थी",
+    "मैं इस उत्पाद से संतुष्ट नहीं हूँ",
+    "उत्पाद महंगा है लेकिन गुणवत्ता ठीक है",
+    "ग्राहक सेवा बहुत अच्छी है",
+    "उत्पाद वैसा नहीं जैसा बताया गया था",
+    "रंग और डिजाइन शानदार हैं",
+    "डिलीवरी में थोड़ी देरी हुई लेकिन उत्पाद अच्छा है"
+]
+hindi_stopwords = ['के' 'का' 'की' 'से' 'को' 'और' 'पर'
+                   'है' 'था' 'थे' 'हूँ' 'हो' 'हैं' 'कि' 'तो'
+                   'भी' 'नहीं' 'लेकिन' 'यह' 'वह' 'वहाँ' 'यहाँ'
+                   'हमने' 'हम' 'मैं' 'तुम' 'आप' 'उसने' 'उन्होंने'
+                   'किया' 'करना' 'लिए' 'जब' 'जहां' 'क्योंकि' 'यदि'
+                    'या' 'अपने' 'साथ' 'बीच' 'बाद' 'पहले' 'तक'
+                   'जैसे' 'कुछ' 'सभी' 'अपनी' 'उसकी' 'उनके' 'ही'
+                   'बहुत' 'कहाँ' 'कौन' 'क्या' 'कैसे' 'कब' 'नीचे' 'ऊपर'
+                   'ऐसा' 'एक' 'दो' 'तीन' 'कभी' 'हमेशा']
+vectorizer= CountVectorizer(stop_words=hindi_stopwords,token_pattern="[\u0900-\u097F]+")
+# vectorizer=CountVectorizer()
+vectorizer
+X=vectorizer.fit_transform(reviews_hindi)
+print(vectorizer.get_feature_names_out())
+print(X.toarray())
+df=pd.DataFrame(X.toarray(),columns=vectorizer.get_feature_names_out())
+df
 
-# Method 3: Load from text files
-# with open('data.txt', 'r') as f:
-#     reviews = f.readlines()
+***Feature Engineering(1. Bag of words(Marathi)***
+docs_marathi = [
+    "हा उत्पादन खूप चांगला आहे",
+    "मला हा उत्पादन आवडला",
+    "उत्पादनाची गुणवत्ता उत्कृष्ट आहे",
+    "डिलिव्हरी जलद झाली आणि पॅकिंग छान होते",
+    "मी या उत्पादनाने समाधानी नाही",
+    "उत्पादन महाग आहे पण गुणवत्ता ठीक आहे",
+    "ग्राहक सेवा चांगली आहे",
+    "उत्पादन वर्णनाप्रमाणे नाही",
+    "रंग आणि डिझाईन खूप सुंदर आहेत",
+    "डिलिव्हरी उशिरा आली पण उत्पादन छान आहे"
+]
+marathi_stopwords = [
+    "हा", "मला", "आहे", "आणि", "चांगला", "पण", "नाही", "मध्यम",
+    "उत्पादन", "गुणवत्ता", "छान", "किंवा", "त्यात", "तरी", "खूप",
+    "रंग", "डिझाईन", "आले", "मध्ये", "वर्णनाप्रमाणे", "उत्पादन",
+    "सेवा", "दिले", "वापर", "तुम्ही", "आहेत", "ते", "तो", "तिच्या",
+    "आणि", "नंतर", "संपूर्ण", "असले", "कदाचित", "तुम्ही", "ते", "जे",
+    "त्याचा", "प्रकार", "सर्व", "साठी", "ते", "तुम", "उतर"
+]
+vectorizer= CountVectorizer(stop_words=marathi_stopwords,token_pattern="[\u0900-\u097F]+")
+# vectorizer=CountVectorizer()
+vectorizer
+X=vectorizer.fit_transform(docs_marathi)
+print(vectorizer.get_feature_names_out())
+print(X.toarray())
+df=pd.DataFrame(X.toarray(),columns=vectorizer.get_feature_names_out())
+df
 
-print(f"Total samples: {len(reviews)}")
-print(f"Sample text: {reviews[0][:100]}...")  # First 100 chars
-
-============================================================================
-STEP 3: TOKENIZATION
-============================================================================
-tokenizer = Tokenizer()
-tokenizer.fit_on_texts(reviews)
-sequences = tokenizer.texts_to_sequences(reviews)
-
-# Check vocabulary size
-vocab_size = len(tokenizer.word_index) + 1
-print(f"Vocabulary size: {vocab_size}")
-
-============================================================================
-STEP 4: PADDING SEQUENCES
-============================================================================
-maxlen = max(len(x) for x in sequences)
-X = pad_sequences(sequences, maxlen=maxlen, padding='post')
-y = np.array(labels)
-
-# Ensure X and y have same length
-min_len = min(len(X), len(y))
-X = X[:min_len]
-y = y[:min_len]
-
-============================================================================
-STEP 5: TRAIN-TEST SPLIT
-============================================================================
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
-)
-
-============================================================================
-STEP 6: BUILD RNN MODEL
-============================================================================
-model = Sequential()
-model.add(Embedding(vocab_size, 10, input_length=maxlen))
-model.add(SimpleRNN(16))
-
-# For multi-class classification (3 classes)
-model.add(Dense(3, activation='softmax'))
-
-# For binary classification
-# model.add(Dense(1, activation='sigmoid'))
-
-model.summary()
-
-============================================================================
-STEP 7: COMPILE MODEL
-============================================================================
-# For multi-class
-model.compile(
-    loss='sparse_categorical_crossentropy',
-    optimizer='adam',
-    metrics=['accuracy']
-)
-
-# For binary
-# model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-
-============================================================================
-STEP 8: TRAIN MODEL
-============================================================================
-model.fit(
-    X_train, y_train,
-    epochs=100,
-    batch_size=32,
-    verbose=1,
-    validation_data=(X_test, y_test)
-)
-
-============================================================================
-STEP 9: PREDICT SENTIMENT
-============================================================================
-def predict_sentiment(text):
-    seq = tokenizer.texts_to_sequences([text])
-    padded = pad_sequences(seq, maxlen=maxlen, padding='post')
-    pred = model.predict(padded)[0]
-    
-    # Get class with highest probability
-    predicted_class = np.argmax(pred)
-    confidence = np.max(pred)
-    
-    # Map numeric class to label
-    sentiment_map = {0: "Negative 😡", 1: "Neutral 😐", 2: "Positive 😊"}
-    sentiment = sentiment_map[predicted_class]
-    
-    print(f"\nReview: {text}")
-    print(f"Predicted Sentiment: {sentiment} (confidence: {confidence:.2f})")
-
-# Test prediction
-text = input("Enter review: ")
-predict_sentiment(text)
-
-============================================================================
-PART 2: NEXT WORD PREDICTION
-============================================================================
-
-============================================================================
-STEP 1: PREPARE CORPUS
-============================================================================
-data = [
-    "I am IronMan, the protector of Earth.",
-    "I am BatMan, the silent guardian of Gotham City.",
-    "I am Groot, a tree-like creature who believes in friendship.",
-    "I want to travel the world and experience different cultures.",
-    "I love to eat spicy Indian food.",
-    "I usually wake up at six thirty in the morning.",
-    "I will start learning advanced Python programming next month.",
+***Frequent used term***
+eng_reviews = [
+    "Battery life is excellent and the camera quality is good.",
+    "Camera is awesome but battery drains very fast.",
+    "Display is bright and the design looks premium.",
+    "The phone design and display are amazing.",
+    "Sound quality is average but battery backup is strong.",
+    "Camera performs well in low light conditions.",
+    "The design is sleek and the phone feels premium in hand.",
+    "Display and sound are both crystal clear.",
+    "Battery charging takes too long but the backup is decent.",
+    "Camera quality and display are the best at this price."
+]
+eng_stop_words=['amazing' 'and' 'are' 'at' 'average' 'awesome' 'backup' 'battery' 'best'
+ 'both' 'bright' 'but' 'camera' 'charging' 'clear' 'conditions' 'crystal'
+ 'decent' 'design' 'display' 'drains' 'excellent' 'fast' 'feels' 'good'
+ 'hand' 'in' 'is' 'life' 'light' 'long' 'looks' 'low' 'performs' 'phone'
+ 'premium' 'price' 'quality' 'sleek' 'sound' 'strong' 'takes' 'the' 'this'
+ 'too' 'very' 'well']
+hindi_reviews = [
+    "यह उत्पाद बहुत अच्छा है",
+    "मुझे यह उत्पाद पसंद आया",
+    "उत्पाद की गुणवत्ता बेहतरीन है",
+    "डिलीवरी बहुत तेज़ थी और पैकिंग अच्छी थी",
+    "मैं इस उत्पाद से संतुष्ट नहीं हूँ",
+    "उत्पाद महंगा है लेकिन गुणवत्ता ठीक है",
+    "ग्राहक सेवा बहुत अच्छी है",
+    "उत्पाद वैसा नहीं जैसा बताया गया था",
+    "रंग और डिजाइन शानदार हैं",
+    "डिलीवरी में थोड़ी देरी हुई लेकिन उत्पाद अच्छा है"
+]
+hindi_stopwords = ['के' 'का' 'की' 'से' 'को' 'और' 'पर'
+                   'है' 'था' 'थे' 'हूँ' 'हो' 'हैं' 'कि' 'तो'
+                   'भी' 'नहीं' 'लेकिन' 'यह' 'वह' 'वहाँ' 'यहाँ'
+                   'हमने' 'हम' 'मैं' 'तुम' 'आप' 'उसने' 'उन्होंने'
+                   'किया' 'करना' 'लिए' 'जब' 'जहां' 'क्योंकि' 'यदि'
+                    'या' 'अपने' 'साथ' 'बीच' 'बाद' 'पहले' 'तक'
+                   'जैसे' 'कुछ' 'सभी' 'अपनी' 'उसकी' 'उनके' 'ही'
+                   'बहुत' 'कहाँ' 'कौन' 'क्या' 'कैसे' 'कब' 'नीचे' 'ऊपर'
+                   'ऐसा' 'एक' 'दो' 'तीन' 'कभी' 'हमेशा']
+marathi_reviews = [
+    "हा उत्पादन खूप चांगला आहे श्रेया ढोके अमेज़न",
+    "मला हा उत्पादन आवडला",
+    "उत्पादनाची गुणवत्ता उत्कृष्ट आहे",
+    "डिलिव्हरी जलद झाली आणि पॅकिंग छान होते",
+    "मी या उत्पादनाने समाधानी नाही",
+    "उत्पादन महाग आहे पण गुणवत्ता ठीक आहे",
+    "ग्राहक सेवा चांगली आहे",
+    "उत्पादन वर्णनाप्रमाणे नाही",
+    "रंग आणि डिझाईन खूप सुंदर आहेत",
+    "डिलिव्हरी उशिरा आली पण उत्पादन छान आहे"
+]
+marathi_stopwords = [
+    "हा", "मला", "आहे", "आणि", "चांगला", "पण", "नाही", "मध्यम",
+    "उत्पादन", "गुणवत्ता", "छान", "किंवा", "त्यात", "तरी", "खूप",
+    "रंग", "डिझाईन", "आले", "मध्ये", "वर्णनाप्रमाणे", "उत्पादन",
+    "सेवा", "दिले", "वापर", "तुम्ही", "आहेत", "ते", "तो", "तिच्या",
+    "आणि", "नंतर", "संपूर्ण", "असले", "कदाचित", "तुम्ही", "ते", "जे",
+    "त्याचा", "प्रकार", "सर्व", "साठी", "ते", "तुम", "उतर"
 ]
 
-============================================================================
-STEP 2: TOKENIZATION
-============================================================================
-tokenizer = Tokenizer()
-tokenizer.fit_on_texts(data)
-total_words = len(tokenizer.word_index) + 1
+import sklearn
+import nltk
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+nltk.download('stopwords')
+from nltk.corpus import stopwords
+eng_stopwords = stopwords.words('english')
+# tfidf_vectorizer = TfidfVectorizer()
+tfidf_vectorizer = TfidfVectorizer(stop_words = marathi_stopwords, token_pattern="[\u0900-\u0975]+")
+tfidf_vectorizer
+matrix = tfidf_vectorizer.fit_transform(marathi_reviews)
+# print(matrix)
+tfidf_matrix = matrix.sum(0).A1
+words = tfidf_vectorizer.get_feature_names_out()
+tfidf_matrix.argsort()[::-1][:5]
+# most frequently used words in reviews
+for i in tfidf_matrix.argsort()[::-1][:5]:
+  print(words[i])
+print("\n")
+# unique used words in reviews
+idf_matrix = tfidf_vectorizer.idf_
+idf_matrix.argsort()[::-1][:5]
+for i in idf_matrix.argsort()[::-1][:5]:
+  print(words[i])
+# matrix.to_array()
+# tfidf_vectorizer.get_feature_names_out()
 
-print(f"Total words: {total_words}")
+****Biagrams, Trigrams, ngrams****
+from sklearn.feature_extraction.text import CountVectorizer
+vectorizer = CountVectorizer(ngram_range=(2,2), stop_words='english')
+bigrams = vectorizer.fit_transform(eng_reviews)
+my_bigrams = vectorizer.get_feature_names_out()
+my_bigrams
+frequency = bigrams.sum(0).A1
+frequency
+# print("biagrams", vectorizer.get_feature_names_out())
+for i in frequency.argsort()[::-1][:5]:
+  print(f"biagram: {my_bigrams[i]} || frequency: {frequency[i]}")
 
-============================================================================
-STEP 3: CREATE INPUT SEQUENCES (N-GRAMS)
-============================================================================
-input_sequences = []
-for line in data:
-    token_list = tokenizer.texts_to_sequences([line])[0]
-    for i in range(1, len(token_list)):
-        n_gram_sequence = token_list[:i+1]
-        input_sequences.append(n_gram_sequence)
+from sklearn.feature_extraction.text import CountVectorizer
+vectorizer = CountVectorizer(ngram_range=(3,3), stop_words='english')
+trigrams = vectorizer.fit_transform(eng_reviews)
+my_trigrams = vectorizer.get_feature_names_out()
+my_trigrams
+frequency = trigrams.sum(0).A1
+frequency
+# print("biagrams", vectorizer.get_feature_names_out())
+for i in frequency.argsort()[::-1][:5]:
+  print(f"biagram: {my_trigrams[i]} || frequency: {frequency[i]}")
 
-============================================================================
-STEP 4: PAD SEQUENCES
-============================================================================
-max_sequence_len = max([len(x) for x in input_sequences])
-input_sequences = np.array(pad_sequences(
-    input_sequences, 
-    maxlen=max_sequence_len, 
-    padding='pre'
-))
+from sklearn.feature_extraction.text import CountVectorizer
+vectorizer = CountVectorizer(ngram_range=(2,2), stop_words=hindi_stopwords)
+bigrams = vectorizer.fit_transform(hindi_reviews)
+my_bigrams = vectorizer.get_feature_names_out()
+my_bigrams
+frequency = bigrams.sum(0).A1
+frequency
+# print("biagrams", vectorizer.get_feature_names_out())
+for i in frequency.argsort()[::-1][:5]:
+  print(f"biagram: {my_bigrams[i]} || frequency: {frequency[i]}")
 
-print(f"Max sequence length: {max_sequence_len}")
+shape_of_you = ["The club isn't the best place to find a lover",
+"So the bar is where I go (mm)",
+"Me and my friends at the table doing shots",
+"Drinking fast and then we talk slow (mm)",
+"Come over and start up a conversation with just me",
+"And trust me I'll give it a chance now (mm)",
+"Take my hand, stop, put Van the Man on the jukebox",
+"And then we start to dance, and now I'm singing like",
+"Girl, you know I want your love",
+"Your love was handmade for somebody like me",
+"Come on now, follow my lead",
+"I may be crazy, don't mind me",
+"Say, boy, let's not talk too much",
+"Grab on my waist and put that body on me",
+"Come on now, follow my lead",
+"Come, come on now, follow my lead, mm",
+"I'm in love with the shape of you",
+"We push and pull like a magnet do",
+"Although my heart is falling too",
+"I'm in love with your body",
+"And last night you were in my room",
+"And now my bedsheets smell like you",
+"Every day discovering something brand new",
+"I'm in love with your body",
+"(Oh-I-oh-I-oh-I-oh-I)",
+"I'm in love with your body",
+"(Oh-I-oh-I-oh-I-oh-I)",
+"I'm in love with your body",
+"(Oh-I-oh-I-oh-I-oh-I)",
+"I'm in love with your body",
+"Every day discovering something brand new",
+"I'm in love with the shape of you",
+"One week in we let the story begin",
+"We're going out on our first date (mm)",
+"You and me are thrifty, so go all you can eat",
+"Fill up your bag and I fill up a plate (mm)",
+"We talk for hours and hours about the sweet and the sour",
+"And how your family is doing okay (mm)",
+"And leave and get in a taxi, then kiss in the backseat",
+"Tell the driver make the radio play, and I'm singing like",
+"Girl, you know I want your love",
+"Your love was handmade for somebody like me",
+"Come on now, follow my lead",
+"I may be crazy, don't mind me",
+"Say, boy, let's not talk too much",
+"Grab on my waist and put that body on me",
+"Come on now, follow my lead",
+"Come, come on now, follow my lead, mm",
+"I'm in love with the shape of you",
+"We push and pull like a magnet do",
+"Although my heart is falling too",
+"I'm in love with your body",
+"And last night you were in my room",
+"And now my bedsheets smell like you",
+"Every day discovering something brand new",
+"I'm in love with your body",
+"(Oh-I-oh-I-oh-I-oh-I)",
+"I'm in love with your body",
+"(Oh-I-oh-I-oh-I-oh-I)",
+"I'm in love with your body",
+"(Oh-I-oh-I-oh-I-oh-I)",
+"I'm in love with your body",
+"Every day discovering something brand new",
+"I'm in love with the shape of you",
+"Come on, be my baby, come on",
+"Come on, be my baby, come on",
+"Come on, be my baby, come on",
+"Come on, be my baby, come on",
+"Come on, be my baby, come on",
+"Come on, be my baby, come on",
+"Come on, be my baby, come on",
+"Come on, be my baby, come on",
+"I'm in love with the shape of you",
+"We push and pull like a magnet do",
+"Although my heart is falling too",
+"I'm in love with your body",
+"And last night you were in my room",
+"And now my bedsheets smell like you",
+"Every day discovering something brand new",
+"I'm in love with your body",
+"Come on, be my baby, come on",
+"Come on (I'm in love with your body), be my baby, come on",
+"Come on, be my baby, come on",
+"Come on (I'm in love with your body), be my baby, come on",
+"Come on, be my baby, come on",
+"Come on (I'm in love with your body), be my baby, come on",
+"Every day discovering something brand new",
+"I'm in love with the shape of you"]
 
-============================================================================
-STEP 5: SPLIT FEATURES AND LABELS
-============================================================================
-X = input_sequences[:, :-1]
-y = input_sequences[:, -1]
+from sklearn.feature_extraction.text import CountVectorizer
+vectorizer = CountVectorizer(ngram_range=(7,7))
+trigrams = vectorizer.fit_transform(shape_of_you)
+my_trigrams = vectorizer.get_feature_names_out()
+my_trigrams
+frequency = trigrams.sum(0).A1
+frequency
+# print("biagrams", vectorizer.get_feature_names_out())
+for i in frequency.argsort()[::-1][:5]:
+  print(f"biagram: {my_trigrams[i]} || frequency: {frequency[i]}")
 
-# One-hot encode labels
-y = np.eye(total_words)[y]
+****Part of speech tagging****
+nltk.download('averaged_perception_tagger')
+nltk.download('averaged_perceptron_tagger_eng')
+nltk.download('punkt')
+nltk.download('punkt_tab')
+from nltk.tokenize import word_tokenize
+from nltk import pos_tag
+for i,doc in enumerate(eng_reviews,1):
+  print(f"review {i}:")
+  tokens=word_tokenize(doc)
+  pos_tags=pos_tag(tokens)
+  print(pos_tags)
 
-============================================================================
-STEP 6: BUILD MODEL FOR NEXT WORD PREDICTION
-============================================================================
-model = Sequential()
-model.add(Embedding(total_words, 10, input_length=max_sequence_len-1))
-model.add(SimpleRNN(100))
-model.add(Dense(total_words, activation='softmax'))
+import spacy
+from spacy import displacy
+nlp = spacy.load("en_core_web_sm")
+for i,doc in enumerate(eng_reviews,1):
+  print(f"Review {i}: ")
+  doc = nlp(doc)
+  for token in doc:
+    print(token.text, token.pos_)
+  print("\n")
 
-model.compile(
-    loss='categorical_crossentropy',
-    optimizer='adam',
-    metrics=['accuracy']
+from nltk.tokenize import word_tokenize
+from nltk import pos_tag
+for i,doc in enumerate(marathi_reviews,1):
+  print(f"review {i}:")
+  tokens=word_tokenize(doc)
+  pos_tags=pos_tag(tokens)
+  print(pos_tags)
+
+!python -m spacy download xx_ent_wiki_sm
+
+import spacy
+from spacy import displacy
+nlp = spacy.load("en_core_web_sm")
+for i,doc in enumerate(hindi_reviews,1):
+  print(f"Review {i}: ")
+  doc = nlp(doc)
+  for token in doc:
+    print(token.text, token.pos_)
+  print("\n")
+
+***POS using stanza***
+!pip install stanza
+eng_reviews = [
+    "Battery life is excellent and the camera quality is good.",
+    "Camera is awesome but battery drains very fast.",
+    "Display is bright and the design looks premium.",
+    "The phone design and display are amazing.",
+    "Sound quality is average but battery backup is strong.",
+    "Camera performs well in low light conditions.",
+    "The design is sleek and the phone feels premium in hand.",
+    "Display and sound are both crystal clear.",
+    "Battery charging takes too long but the backup is decent.",
+    "Camera quality and display are the best at this price."
+]
+eng_stop_words=['amazing' 'and' 'are' 'at' 'average' 'awesome' 'backup' 'battery' 'best'
+ 'both' 'bright' 'but' 'camera' 'charging' 'clear' 'conditions' 'crystal'
+ 'decent' 'design' 'display' 'drains' 'excellent' 'fast' 'feels' 'good'
+ 'hand' 'in' 'is' 'life' 'light' 'long' 'looks' 'low' 'performs' 'phone'
+ 'premium' 'price' 'quality' 'sleek' 'sound' 'strong' 'takes' 'the' 'this'
+ 'too' 'very' 'well']
+hindi_reviews = [
+    "यह उत्पाद बहुत अच्छा है",
+    "मुझे यह उत्पाद पसंद आया",
+    "उत्पाद की गुणवत्ता बेहतरीन है",
+    "डिलीवरी बहुत तेज़ थी और पैकिंग अच्छी थी",
+    "मैं इस उत्पाद से संतुष्ट नहीं हूँ",
+    "उत्पाद महंगा है लेकिन गुणवत्ता ठीक है",
+    "ग्राहक सेवा बहुत अच्छी है",
+    "उत्पाद वैसा नहीं जैसा बताया गया था",
+    "रंग और डिजाइन शानदार हैं",
+    "डिलीवरी में थोड़ी देरी हुई लेकिन उत्पाद अच्छा है"
+]
+hindi_stopwords = ['के' 'का' 'की' 'से' 'को' 'और' 'पर'
+                   'है' 'था' 'थे' 'हूँ' 'हो' 'हैं' 'कि' 'तो'
+                   'भी' 'नहीं' 'लेकिन' 'यह' 'वह' 'वहाँ' 'यहाँ'
+                   'हमने' 'हम' 'मैं' 'तुम' 'आप' 'उसने' 'उन्होंने'
+                   'किया' 'करना' 'लिए' 'जब' 'जहां' 'क्योंकि' 'यदि'
+                    'या' 'अपने' 'साथ' 'बीच' 'बाद' 'पहले' 'तक'
+                   'जैसे' 'कुछ' 'सभी' 'अपनी' 'उसकी' 'उनके' 'ही'
+                   'बहुत' 'कहाँ' 'कौन' 'क्या' 'कैसे' 'कब' 'नीचे' 'ऊपर'
+                   'ऐसा' 'एक' 'दो' 'तीन' 'कभी' 'हमेशा']
+marathi_reviews = [
+    "हा उत्पादन खूप चांगला आहे श्रेया ढोके अमेज़न",
+    "मला हा उत्पादन आवडला",
+    "उत्पादनाची गुणवत्ता उत्कृष्ट आहे",
+    "डिलिव्हरी जलद झाली आणि पॅकिंग छान होते",
+    "मी या उत्पादनाने समाधानी नाही",
+    "उत्पादन महाग आहे पण गुणवत्ता ठीक आहे",
+    "ग्राहक सेवा चांगली आहे",
+    "उत्पादन वर्णनाप्रमाणे नाही",
+    "रंग आणि डिझाईन खूप सुंदर आहेत",
+    "डिलिव्हरी उशिरा आली पण उत्पादन छान आहे"
+]
+marathi_stopwords = [
+    "हा", "मला", "आहे", "आणि", "चांगला", "पण", "नाही", "मध्यम",
+    "उत्पादन", "गुणवत्ता", "छान", "किंवा", "त्यात", "तरी", "खूप",
+    "रंग", "डिझाईन", "आले", "मध्ये", "वर्णनाप्रमाणे", "उत्पादन",
+    "सेवा", "दिले", "वापर", "तुम्ही", "आहेत", "ते", "तो", "तिच्या",
+    "आणि", "नंतर", "संपूर्ण", "असले", "कदाचित", "तुम्ही", "ते", "जे",
+    "त्याचा", "प्रकार", "सर्व", "साठी", "ते", "तुम", "उतर"
+]
+
+docs_hindi = [
+    "यह उत्पाद बहुत अच्छा है",
+    "मुझे यह उत्पाद पसंद आया",
+    "उत्पाद की गुणवत्ता बेहतरीन है",
+    "डिलीवरी बहुत तेज़ थी और पैकिंग अच्छी थी",
+    "मैं इस उत्पाद से संतुष्ट नहीं हूँ",
+    "उत्पाद महंगा है लेकिन गुणवत्ता ठीक है",
+    "ग्राहक सेवा बहुत अच्छी है",
+    "उत्पाद वैसा नहीं जैसा बताया गया था",
+    "रंग और डिजाइन शानदार हैं",
+    "डिलीवरी में थोड़ी देरी हुई लेकिन उत्पाद अच्छा है"
+]
+docs_marathi = [
+    "हा उत्पादन खूप चांगला आहे",
+    "मला हा उत्पादन आवडला",
+    "उत्पादनाची गुणवत्ता उत्कृष्ट आहे",
+    "डिलिव्हरी जलद झाली आणि पॅकिंग छान होते",
+    "मी या उत्पादनाने समाधानी नाही",
+    "उत्पादन महाग आहे पण गुणवत्ता ठीक आहे",
+    "ग्राहक सेवा चांगली आहे",
+    "उत्पादन वर्णनाप्रमाणे नाही",
+    "रंग आणि डिझाईन खूप सुंदर आहेत",
+    "डिलिव्हरी उशिरा आली पण उत्पादन छान आहे"
+]
+import stanza
+stanza.download("hi")
+stanza.download('mr')
+nlp_hi = stanza.Pipeline("mr")
+for i,doc in enumerate(docs_marathi,1):
+    doc_obj = nlp_hi(doc)
+    print(f"\nSentence {i}: {doc}")
+    for sentence in doc_obj.sentences:
+        for word in sentence.words:
+            print(f"{word.text}/{word.upos}", end=' ')
+    print()
+for i,doc in enumerate(docs_hindi,1):
+    doc_obj = nlp_hi(doc)
+    print(f"\nSentence {i}: {doc}")
+    for sentence in doc_obj.sentences:
+        for word in sentence.words:
+            print(f"{word.text}/{word.upos}", end=' ')
+    print()
+
+****Named Entity Recognition****
+!pip install jupyter
+!pip install jupyter displacy
+
+sentences = {
+    "Barack Obama was the 44th President of the United States.",
+    "Apple Inc. released the iPhone 15 in September 2023.",
+    "Sachin Tendulkar scored his 100th century at Mirpur Stadium.",
+    "The Eiffel Tower is one of the most famous landmarks in Paris.",
+    "Google was founded by Larry Page and Sergey Brin at Stanford University.",
+    "The Olympic Games will be held in Los Angeles in 2028.",
+    "Amazon opened a new data center in Mumbai last year.",
+    "NASA launched the Artemis mission to the Moon in November 2022."
+}
+
+import jupyter
+import spacy
+from spacy import displacy
+nlp = spacy.load("en_core_web_sm")
+for i, review in enumerate(sentences, i):
+  print(review)
+  doc = nlp(review)
+  if doc.ents:
+    for ent in doc.ents:
+      print(f"Entitiy {i}: {ent.text} - {ent.label_} - {spacy.explain(ent.label_)}")
+      print("\n")
+  else:
+    print("not found")
+
+sentences_mr = {
+    "Barack Obama हे अमेरिकेचे माजी राष्ट्राध्यक्ष आहेत.",
+    "मी गेल्या वर्षी Paris ला प्रवास केला होता.",
+    "Ratan Tata हे भारतातील सर्वात आदरणीय उद्योगपतींपैकी एक आहेत.",
+    "Apple कंपनीने नवीन iPhone 15 बाजारात आणला आहे.",
+    "Shravya यांना क्रिकेटचा देव मानले जाते.",
+    "Google चे मुख्यालय California मध्ये आहे.",
+    "Taj Mahal हा भारतातील सर्वात प्रसिद्ध स्मारक आहे.",
+    "Elon Musk यांनी SpaceX आणि Tesla या कंपन्या स्थापन केल्या."
+}
+
+import jupyter
+import spacy
+from spacy import displacy
+nlp = spacy.load("en_core_web_sm")
+for i, review in enumerate(sentences_mr, i):
+  print(review)
+  doc = nlp(review)
+  if doc.ents:
+    for ent in doc.ents:
+      print(f"Entitiy {i}: {ent.text} - {ent.label_} - {spacy.explain(ent.label_)}")
+      print("\n")
+  else:
+    print("not found")
+
+pure_marathi = {
+    "छत्रपती शिवाजी महाराज यांनी स्वराज्याची स्थापना केली.",
+    "डॉ. बाबासाहेब आंबेडकर यांनी भारतीय संविधान तयार केले.",
+    "सचिन तेंडुलकर हा जगप्रसिद्ध क्रिकेटपटू आहे.",
+    "लता मंगेशकर यांचा आवाज संपूर्ण जगभर गाजला.",
+    "पुणे हे महाराष्ट्रातील एक ऐतिहासिक शहर आहे.",
+    "महाराष्ट्राचे मुख्यमंत्री एकनाथ शिंदे यांनी सभा घेतली.",
+    "ताजमहाल आग्रा येथे स्थित आहे.",
+    "भारतीय अवकाश संशोधन संस्था म्हणजेच इस्रो यांनी चांद्रयान मोहिम यशस्वी केली.",
+    "मुंबईत गेटवे ऑफ इंडिया हे प्रसिद्ध पर्यटनस्थळ आहे.",
+    "पंडित भीमसेन जोशी हे प्रसिद्ध शास्त्रीय गायक होते."
+}
+
+#🧾 Stanza (Indic Language) NER Tag Reference
+#Tag	Meaning / Description	Example
+#NEP	Person / Name	Shivaji, Ambedkar, Sachin
+#NEL	Location / Place	Pune, Mumbai, Agra
+#NEO	Organization / Institution	ISRO, Tata Group, LIC
+#ED	Honorific / Title / Designation	Dr., Sir, Maharaj, Chhatrapati
+#TIM	Time Expression (Date / Time)	2023, Monday, Yesterday
+#NUM	Numeric / Quantity	10, 5000, 3 crore
+#MISC	Miscellaneous / Other Entity Types	(anything not covered above)
+
+import stanza
+nlp_mr = stanza.Pipeline("mr")
+for i, review in enumerate(pure_marathi, i):
+  print(review)
+  doc = nlp_mr(review)
+  if doc.ents:
+    for ent in doc.ents:
+      print(f"Entitiy {i}: {ent.text} - {ent.type}")
+      print("\n")
+  else:
+    print("not found")
+
+text = """
+In 2023, Prime Minister Narendra Modi inaugurated the new Parliament building in New Delhi.
+Later, he attended a conference organized by the United Nations on climate change.
+Meanwhile, Ratan Tata visited the Tata Motors plant in Pune.
+Apple Inc. announced its new iPhone model during an event held in California.
+Sachin Tendulkar was invited as a special guest at the Mumbai Marathon 2023.
+"""
+doc = nlp(text)
+displacy.render(doc, style="ent", jupyter=True)
+
+****Detecting Features****
+from numpy import vectorize
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.decomposition import LatentDirichletAllocation
+vectorizer = CountVectorizer(stop_words='english')
+vectorizer
+lda = LatentDirichletAllocation(n_components=6, random_state=42)
+x = vectorizer.fit_transform(sentences)
+lda.fit(x)
+words = vectorizer.get_feature_names_out()
+for i, topic in enumerate(lda.components_):
+  topics = topic.argsort()[-5:]
+  print([words[i] for i in topics])
+print("\n")
+
+from numpy import vectorize
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.decomposition import LatentDirichletAllocation
+vectorizer = CountVectorizer(stop_words=marathi_stopwords)
+vectorizer
+lda = LatentDirichletAllocation(n_components=6, random_state=42)
+x = vectorizer.fit_transform(pure_marathi)
+lda.fit(x)
+words = vectorizer.get_feature_names_out()
+for i, topic in enumerate(lda.components_):
+  topics = topic.argsort()[-5:]
+  print([words[i] for i in topics])
+print("\n")
+
+***Language identification for regional Indian languages***
+from transformers import pipeline
+texts = [
+    "I love programming in Python.",                           # English
+    "Hola amigo, ¿cómo estás?",                                # Spanish
+    "Je suis heureux aujourd’hui.",                            # French
+    "Ich liebe Programmieren.",                                # German
+    "Ciao, come stai?",                                        # Italian
+    "こんにちは、元気ですか？",                                      # Japanese
+    "你好，今天好吗？",                                           # Chinese
+    "Привет, как дела?",                                       # Russian
+    "안녕하세요, 오늘 기분이 어때요?",                               # Korean
+    "हैलो, आप कैसे हैं?",                                      # Hindi
+    "আমি বাংলায় কথা বলি।",                                    # Bengali
+    "తెలుగు నాకు ఇష్టం.",                                       # Telugu
+    "தமிழ் எனக்கு பிடிக்கும்.",                                   # Tamil
+    "മലയാളം ഒരു മനോഹരമായ ഭാഷയാണ്.",                           # Malayalam
+    "ಕನ್ನಡ ಒಂದು ಸುಂದರ ಭಾಷೆ.",                                    # Kannada
+    "मराठी माझी मातृभाषा आहे.",                                 # Marathi
+    "ગુજરાતી મારી માતૃભાષા છે.",                                # Gujarati
+    "ਪੰਜਾਬੀ ਮੇਰੀ ਮਾਤ੍ਰਭਾਸ਼ਾ ਹੈ।",                               # Punjabi
+    "ଓଡ଼ିଆ ମୋ ମାତୃଭାଷା ଅଟେ।",                                 # Odia
+    "অসমীয়া ভাষা মোৰ গৌৰৱ।",                                   # Assamese
+    "संस्कृतं भारतस्य प्राचीनतमं भाषाऽस्ति।",                    # Sanskrit
+    "मैथिली भाषा बहुत मधुर है।",                                 # Maithili
+    "বাংলা এবং অসমীয়া দুইটি আলাদা ভাষা।",                         # Bengali–Assamese variant
+    "اردو ایک خوبصورت زبان ہے۔",                                # Urdu
+    "कोकणी माझी आवडती भाषा आहे.",                               # Konkani
+    "नेपाली मेरो मातृभाषा हो।",                                 # Nepali
+    "भोजपुरी में बात करीं?",                                    # Bhojpuri
+    "डोगरी भाषा जम्मू क्षेत्र की प्रमुख भाषा है।",                # Dogri
+    "कश्मीरी भाषा बहुत पुरानी है।",                              # Kashmiri
+    "मणिपुरी একটি সুন্দর ভাষা।",                                 # Manipuri (Meitei)
+    "संताली आमार भाषा आहे।",                                    # Santali (Ol Chiki transliteration)
+    "बोडो भाषा असम में बोली जाती है।",                           # Bodo
+    "मैथिली और भोजपुरी दोनों पूर्वी भारत में बोली जाती हैं।"       # Eastern group
+]
+lang_identifier = pipeline("text-classification", model="papluca/xlm-roberta-base-language-detection")
+for text in texts:
+  result = lang_identifier(text)
+  print(result)
+
+pip install langid langdetect
+
+import langdetect
+import langid
+texts = [
+    "I love programming in Python.",                           # English
+    "हैलो, आप कैसे हैं?",                                      # Hindi
+    "আমি বাংলায় কথা বলি।",                                    # Bengali
+    "తెలుగు నాకు ఇష్టం.",                                       # Telugu
+    "தமிழ் எனக்கு பிடிக்கும்.",                                   # Tamil
+    "മലയാളം ഒരു മനോഹരമായ ഭാഷയാണ്.",                           # Malayalam
+    "ಕನ್ನಡ ಒಂದು ಸುಂದರ ಭಾಷೆ.",                                    # Kannada
+    "मराठी माझी मातृभाषा आहे.",                                 # Marathi
+    "ગુજરાતી મારી માતૃભાષા છે.",                                # Gujarati
+    "ਪੰਜਾਬੀ ਮੇਰੀ ਮਾਤ੍ਰਭਾਸ਼ਾ ਹੈ।",                               # Punjabi
+    "অসমীয়া ভাষা মোৰ গৌৰৱ।",                                   # Assamese
+      "डोगरी भाषा जम्मू क्षेत्र की प्रमुख भाषा है।",                # Dogri
+     "मणिपुरी একটি সুন্দর ভাষা।",                                 # Manipuri (Meitei)
+    "संताली आमार भाषा आहे।",                                    # Santali (Ol Chiki transliteration)
+    "बोडो भाषा असम में बोली जाती है।",                           # Bodo
+    "मैथिली और भोजपुरी दोनों पूर्वी भारत में बोली जाती हैं।"       # Eastern group
+    "कोकणी माझी आवडती भाषा आहे.",                               # Konkani
+]
+for text in texts:
+  lang,confidence= langid.classify(text)
+  print(f"Language : {lang}, Confidence: {confidence}")
+
+from langdetect import detect, detect_langs
+for text in texts:
+  lang = detect_langs(text)
+  print(f"{text} - Language: {lang}")
+
+***Sentiment Emotion Detection***
+movie_reviews = [
+    "Absolutely loved the movie! The acting and story were brilliant.",
+    "Terrible film. I wasted two hours of my life watching this nonsense.",
+    "The visuals were stunning, but the story was weak.",
+    "A heartwarming tale with powerful performances by the cast.",
+    "The movie was too slow and boring. Fell asleep halfway.",
+    "Fantastic direction and cinematography. Truly a masterpiece!",
+    "Mediocre at best. Not worth the hype.",
+    "The visuals were stunning, but the story was weak.",
+    "The movie was too slow and boring. Fell asleep halfway.",
+    "Brilliant plot twists and engaging screenplay kept me hooked.",
+    "The dialogues were cringe-worthy and predictable.",
+    "Good movie overall, but the ending felt rushed.",
+    "An emotional rollercoaster that made me cry and smile.",
+    "I didn’t understand what was going on. Very confusing script.",
+    "A perfect family entertainer with great music.",
+    "The lead actor carried the entire film. Superb performance!",
+    "Too much violence and unnecessary drama ruined the movie.",
+    "Decent watch, but could have been much better.",
+    "An inspiring story that stays with you long after watching.",
+    "Poor editing and weak character development.",
+    "A fresh and original concept beautifully executed.",
+    "One of the worst movies I’ve seen this year."
+]
+
+!pip install vaderSentiment
+!pip install --upgrade vaderSentiment
+
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+import nltk
+nltk.download('vader_lexicon')
+import pandas as pd
+analyzer = SentimentIntensityAnalyzer()
+data = []
+for reviews in movie_reviews:
+    sentiment_scores = analyzer.polarity_scores(reviews)
+    # print(f"{reviews} --> {sentiment_scores}")
+    data.append({
+        'review':reviews,
+        'neutral':sentiment_scores['neu'],
+        'positive':sentiment_scores['pos'],
+        'negative':sentiment_scores['neg'],
+        'compound':sentiment_scores['compound']
+    })
+df = pd.DataFrame(data)
+df
+df['sentiments'] = df['compound'].apply(lambda x: 'positive' if x >= 0.05 else ('negative' if x <= -0.05 else 'neutral'))
+df
+
+***emotion detection using pre-trained***
+from transformers import pipeline
+emotion_analyzer = pipeline('text-classification', model="j-hartmann/emotion-english-distilroberta-base",
+                            return_all_scores=True)
+emotion_analyzer
+for r in movie_reviews:
+    result = emotion_analyzer(r)[0]
+    top_emotion = max(result, key=lambda x: x['score'])
+    print(f"{r}\n→ Emotion: {top_emotion['label']} (score: {top_emotion['score']:.2f})\n")
+
+from transformers import pipeline
+emotion_classifier = pipeline(
+    "text-classification",
+    model="SamLowe/roberta-base-go_emotions",
+    return_all_scores=False
 )
+reviews = [
+    "Absolutely loved the movie! The acting and story were brilliant.",
+    "Terrible film. I wasted two hours of my life watching this nonsense.",
+    "The movie was too slow and boring. Fell asleep halfway.",
+    "The visuals were stunning and full of admiration for the craft."
+]
+for r in reviews:
+    print(f"{r}\n→ {emotion_classifier(r)[0]}\n")
+# Absolutely loved the movie! The acting and story were brilliant.
+# → {'label': 'admiration', 'score': 0.8873493671417236}
+# Terrible film. I wasted two hours of my life watching this nonsense.
+# → {'label': 'disgust', 'score': 0.2688419818878174}
+# The movie was too slow and boring. Fell asleep halfway.
+# → {'label': 'disappointment', 'score': 0.6511252522468567}
+# The visuals were stunning and full of admiration for the craft.
+# → {'label': 'admiration', 'score': 0.9596165418624878}
 
-model.summary()
+data = []
+for review in movie_reviews:
+    emotion_scores = emotion_analyzer(review)[0]
+    # print(review)
+    # print(emotion_scores)
+    top_emotion = max(emotion_scores, key=lambda x: x['score'])
+    # print(top_emotion)
+    data.append({
+        'review':review,
+        'emotion':top_emotion['label'],
+        'score':top_emotion['score']
+    })
+df = pd.DataFrame(data)
+df
 
-============================================================================
-STEP 7: TRAIN MODEL
-============================================================================
-model.fit(X, y, epochs=200, verbose=1)
+from transformers import pipeline
+lang_identifier = pipeline("text-classification", model="papluca/xlm-roberta-base-language-detection")
+texts = [
+    "I love programming in Python.",                 # English
+    "Je suis heureux aujourd’hui.",                 # French
+    "नमस्ते, आपका दिन शुभ हो।",                     # Hindi
+    "मी मराठी बोलतो.",                              # Marathi
+    "তুমি কেমন আছো?",                              # Bengali
+    "હું ગુજરાતીમાં વાત કરું છું.",                   # Gujarati
+    "آپ کیسے ہیں؟",                                 # Urdu
+    "Hola amigo, ¿cómo estás?"                      # Spanish
+]
 
-============================================================================
-STEP 8: PREDICT NEXT WORD (SIMPLE VERSION)
-============================================================================
-def predict_next_word_simple(send_text):
-    token_list = tokenizer.texts_to_sequences([send_text])[0]
-    token_list = pad_sequences([token_list], maxlen=max_sequence_len-1, padding='pre')
-    predicted = np.argmax(model.predict(token_list), axis=1)
-    
-    for word, index in tokenizer.word_index.items():
-        if index in predicted:
-            return word
+for text in texts:
+  result = lang_identifier(text)[0]
+  print(result)
 
-# Test
-print(predict_next_word_simple("I am"))
+!pip install langdetect
 
-============================================================================
-STEP 9: PREDICT NEXT WORD (ADVANCED VERSION)
-============================================================================
-def predict_next_word(send_text, top_n=5):
-    # Preprocess input
-    send_text_lower = send_text.lower().strip()
-    token_list = tokenizer.texts_to_sequences([send_text_lower])[0]
-    token_list = pad_sequences([token_list], maxlen=max_sequence_len-1, padding='pre')
-    
-    # Get prediction probabilities
-    predicted_probs = model.predict(token_list, verbose=0)[0]
-    
-    # Get top N predicted word indices
-    top_indices = np.argsort(predicted_probs)[::-1][:top_n]
-    
-    # Map indices to words
-    index_to_word = {index: word for word, index in tokenizer.word_index.items()}
-    
-    top_words = []
-    for i in top_indices:
-        word = index_to_word.get(i)
-        prob = predicted_probs[i]
-        if word:
-            top_words.append((word, prob))
-    
-    # Print results
-    print(f"\nInput: {send_text}")
-    print(f"Predicted next word: **{top_words[0][0]}** (prob={top_words[0][1]:.4f})")
-    print("Other possible next words:")
-    for w, p in top_words[1:]:
-        print(f"  - {w} ({p:.4f})")
-    
-    return {
-        "predicted": top_words[0][0],
-        "suggestions": [{"word": w, "prob": float(p)} for w, p in top_words]
-    }
+from langdetect import detect, detect_langs
+for text in texts:
+  try:
+    print(f"{text} --> {detect(text)}")
+  except:
+    print(f"{text} --> {detect_langs(text)}")
 
-# Test advanced prediction
-text = input("Enter words: ")
-print(predict_next_word(text))
+!pip install langid
+import langid
+for t in texts:
+    lang, confidence = langid.classify(t)
+    print(f"{t} → {lang} ({confidence:.2f})")
 
-============================================================================
-QUICK REFERENCE GUIDE
-============================================================================
+from langdetect import detect, detect_langs
+import pandas as pd
+data = []
+for text in texts:
+    try:
+        lang = detect(text)
+    except:
+        lang = "unknown"
+    data.append({'Text': text, 'Detected_Language': lang})
+df = pd.DataFrame(data)
+print(df)
 
-📌 RNN LAYERS:
-   - SimpleRNN: Basic RNN (good for learning)
-   - LSTM: Better for long sequences (use instead of SimpleRNN)
-   - GRU: Faster alternative to LSTM
+!pip install transformers torch
 
-📌 TYPICAL RNN ARCHITECTURE:
-   
-   Text Classification:
-   Embedding → SimpleRNN/LSTM → Dense(classes, softmax)
-   
-   Next Word Prediction:
-   Embedding → SimpleRNN/LSTM → Dense(vocab_size, softmax)
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import torch
+tokenizer = AutoTokenizer.from_pretrained("cardiffnlp/twitter-xlm-roberta-base-sentiment")
+model = AutoModelForSequenceClassification.from_pretrained("cardiffnlp/twitter-xlm-roberta-base-sentiment")
+hindi_reviews = [
+    "मुझे यह फिल्म बहुत पसंद आई।",  # I really liked this movie (Positive)
+    "यह कहानी बहुत बोरिंग थी।",     # The story was very boring (Negative)
+    "अभिनय अच्छा था लेकिन कहानी कमजोर थी।",  # Acting was good but story was weak (Neutral/Mixed)
+    "संगीत शानदार था!",             # The music was amazing (Positive)
+    "दूसरा भाग उतना अच्छा नहीं था।",  # The sequel wasn’t that good (Negative)
+    "फिल्म ठीक-ठाक थी, कुछ खास नहीं।"   # The movie was okay, nothing special (Neutral)
+]
 
-📌 EMBEDDING LAYER:
-   - Converts words to dense vectors
-   - Parameters: (vocab_size, embedding_dim, input_length)
-   - embedding_dim: 10, 50, 100, 128, 300
-   - Must be first layer for text data
-
-📌 TOKENIZATION STEPS:
-   1. Create Tokenizer()
-   2. fit_on_texts(texts) - Build vocabulary
-   3. texts_to_sequences(texts) - Convert to numbers
-   4. pad_sequences() - Make all same length
-
-📌 PADDING:
-   - padding='post': Add zeros at end
-   - padding='pre': Add zeros at beginning
-   - maxlen: Maximum sequence length
-   - Use 'pre' for next word prediction
-
-📌 LOSS FUNCTIONS:
-   - Binary classification: 'binary_crossentropy'
-   - Multi-class (integer): 'sparse_categorical_crossentropy'
-   - Multi-class (one-hot): 'categorical_crossentropy'
-
-📌 LABELS:
-   - Text classification: Use integer labels (0, 1, 2)
-   - Next word prediction: One-hot encode with np.eye()
-
-📌 COMMON PARAMETERS:
-   - vocab_size = len(tokenizer.word_index) + 1
-   - maxlen = max(len(x) for x in sequences)
-   - epochs: 50, 100, 200
-   - batch_size: 32, 64
-
-📌 PREDICTION INTERPRETATION:
-   - model.predict() returns probabilities
-   - np.argmax(): Get class with highest probability
-   - Use sentiment_map to convert numbers to labels
-
-📌 N-GRAM SEQUENCES:
-   For "I am Groot":
-   - "I" → predicts "am"
-   - "I am" → predicts "Groot"
-   Creates training pairs from text
-
-📌 YOUR CODING PATTERN:
-   
-   Sentiment Analysis:
-   1. Prepare text data with labels
-   2. Tokenize and pad
-   3. Embedding → RNN → Dense
-   4. sparse_categorical_crossentropy loss
-   5. Predict with sentiment mapping
-   
-   Next Word:
-   1. Create n-gram sequences
-   2. Pad with 'pre'
-   3. One-hot encode output
-   4. Embedding → RNN → Dense(vocab_size)
-   5. categorical_crossentropy loss
-
-📌 VOCABULARY:
-   - tokenizer.word_index: Dictionary of word→index
-   - Add 1 for vocab_size (index 0 reserved)
-   - Use index_to_word for reverse mapping
-
-📌 TIPS:
-   - More training data = better predictions
-   - Larger embedding_dim = more parameters
-   - LSTM usually better than SimpleRNN
-   - Use validation_data to monitor overfitting
+# Step 5: Sentiment labels
+labels = ['negative', 'neutral', 'positive']
+results = []
+for review in hindi_reviews:
+   # Convert text to model input format
+    inputs = tokenizer(review, return_tensors="pt", truncation=True, padding=True)
+    # Run model
+    outputs = model(**inputs)
+    #  Convert model output to probabilities
+    scores = torch.nn.functional.softmax(outputs.logits, dim=-1)
+    # Find which label (negative/neutral/positive) has the highest score
+    sentiment = labels[torch.argmax(scores)]
+    # Save result
+    results.append({'Review': review, 'Sentiment': sentiment})
+# Step 7: Show output as a table
+df = pd.DataFrame(results)
+print(df)
